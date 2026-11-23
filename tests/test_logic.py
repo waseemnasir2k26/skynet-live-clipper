@@ -120,3 +120,19 @@ def test_caption_censor():
     from skynet_clipper.render import clean_word
     assert clean_word("bhai") == "BHAI"
     assert clean_word("madarchod").startswith("M*")
+
+
+def test_caption_chunks_never_overlap():
+    import re
+    from skynet_clipper.asr import Word
+    from skynet_clipper.render import build_ass
+    ws = [Word(10.0 + i * 0.3, 10.0 + i * 0.3 + 0.5, "w", f"w{i}") for i in range(12)]  # word ends overlap next starts
+    ass = build_ass(ws, 10.0, 10.0, "", "", "", {"hook": 700, "caption": 1400}, 2.5)
+    spans = []
+    for line in ass.splitlines():
+        if line.startswith("Dialogue: 2,"):
+            a, b = line.split(",")[1:3]
+            f = lambda t: sum(float(x) * m for x, m in zip(t.split(":"), (3600, 60, 1)))  # noqa: E731
+            spans.append((f(a), f(b)))
+    spans.sort()
+    assert all(spans[i][1] <= spans[i + 1][0] + 1e-6 for i in range(len(spans) - 1))

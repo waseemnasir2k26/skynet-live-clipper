@@ -100,9 +100,12 @@ def build_ass(words: list[Word], t0: float, dur: float, title: str, credit: str,
                   f"{{\\pos(540,{zones['hook']})\\fad(0,200)\\t(0,180,\\fscx104\\fscy104)\\t(180,320,\\fscx100\\fscy100)}}"
                   f"{wrap_title(ass_escape(title.upper()))}")
     cy = zones["caption"]
-    for ch in chunk_words([w for w in words if w.t1 > t0 and w.t0 < t0 + dur]):
+    chunks = chunk_words([w for w in words if w.t1 > t0 and w.t0 < t0 + dur])
+    for k, ch in enumerate(chunks):
         c0 = max(0.0, ch[0].t0 - t0)
         c1 = min(dur, ch[-1].t1 - t0 + 0.15)
+        if k + 1 < len(chunks):  # never two caption chunks on screen at once (they overprint)
+            c1 = min(c1, max(c0 + 0.05, chunks[k + 1][0].t0 - t0))
         texts = [ass_escape(clean_word(w.roman)) for w in ch]
         for i, w in enumerate(ch):
             a = c0 if i == 0 else max(c0, w.t0 - t0)

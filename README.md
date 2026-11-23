@@ -85,8 +85,8 @@ the engine exits. Never starts a second engine; caps on polls, hours and starts 
 `py -3.11 -m skynet_clipper.kaggle_lane pack CHUNK.mkv [CHAT.json] --start-epoch E`, then `push <slug>` and
 `pull <slug>`. It uploads a PRIVATE dataset (chunk + chat + this repo's code, no secrets) and a PRIVATE GPU kernel
 (2x T4) that runs the same engine in `vod` mode with large-v3 whisper on CUDA and libx264. The claude CLI judge
-is not available there, so clips get the deterministic fallback score; re-judge on the laptop later. Status: written,
-pack step only checked; push/pull NOT run yet. Colab (needs a browser tab) and the VPS light profile
+is not available there, so clips get the deterministic fallback score; re-judge on the laptop later. Status: a 60 s test chunk was pushed
+(private) and ran over an hour without finishing (most likely the `-follow` hang, now fixed with `follow: never`, not re-tested); the GPU run was replaced by a no-op version to stop it. Colab (needs a browser tab) and the VPS light profile
 (`deploy/`) are the next lanes.
 
 ## Safety and caps (all in `config.yaml`)
@@ -112,3 +112,11 @@ parsing/bounds, transliteration and the output contract schema.
 - The facecam layout assumes a stable webcam position; a mid-stream scene change keeps the first layout until restart.
 - Chat timing is mapped by wall clock; viewer delay is a fixed 12 s guess.
 - Twitch / Kick, the Linux install script and the systemd unit were written but not run.
+
+## What was tested on 2026-11-24 (CarryisLive GTA VI stream ipZCIW7DNJo)
+
+- Live mode against the real YouTube stream: 170 s captured + 160 chat messages (smoke run, ASR/judge off).
+- Following the growing live capture while the stream was live (02:52-03:09): 8 clips cut from captured material.
+- Replay of the finished VOD with chat replay: 2.5 h of stream (VOD 3600-12600 s) through the real-time path,
+  3x / 1x / 3x legs: 81 candidates, 81 vision-LLM judgments, 14 clips, 0 errors.
+- Channel watcher polling. Not tested: Twitch/Kick, Linux/systemd install, Kaggle lane end to end, light mode switch.
