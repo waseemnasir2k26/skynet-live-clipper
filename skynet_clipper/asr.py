@@ -59,6 +59,7 @@ class Transcriber:
         self.language, self.beam = language, beam
         self.model = None
         self.lock = threading.Lock()
+        self.cpu_threads = 4  # CPU path (light mode / fallback) never takes the whole box
 
     def load(self) -> None:
         if os.name == "nt" and self.device == "cuda":
@@ -66,9 +67,10 @@ class Transcriber:
         from faster_whisper import WhisperModel
         try:
             self.model = WhisperModel(self.model_name, device=self.device, compute_type=self.compute_type,
-                                      local_files_only=True)
+                                      cpu_threads=self.cpu_threads, local_files_only=True)
         except Exception:
-            self.model = WhisperModel(self.model_name, device=self.device, compute_type=self.compute_type)
+            self.model = WhisperModel(self.model_name, device=self.device, compute_type=self.compute_type,
+                                      cpu_threads=self.cpu_threads)
         log(f"whisper {self.model_name} loaded on {self.device}")
 
     def transcribe(self, pcm: np.ndarray, t0: float) -> list[Word]:

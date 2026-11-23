@@ -1,0 +1,32 @@
+{"ts": "2026-11-23T23:01:11", "type": "info", "msg": "Watching twitch.tv/carryislive", "data": {}}
+{"ts": "2026-11-24T02:25:58", "type": "candidate", "msg": "Chat spike 2.8x baseline", "data": {"chat_z": 2.8}}
+{"ts": "2026-11-24T02:26:12", "type": "judged", "msg": "AI judge: 94/100 - clean payoff", "data": {"score": 94}}
+{"ts": "2026-11-24T02:26:53", "type": "cut", "msg": "Clip cut in 38 s", "data": {}}
+{"ts": "2026-11-24T02:29:58", "type": "candidate", "msg": "Chat spike 3.2x baseline", "data": {"chat_z": 3.2}}
+{"ts": "2026-11-24T02:30:12", "type": "judged", "msg": "AI judge: 88/100 - surprise reversal", "data": {"score": 88}}
+{"ts": "2026-11-24T02:30:53", "type": "cut", "msg": "Clip cut in 41 s", "data": {}}
+{"ts": "2026-11-24T02:33:33", "type": "candidate", "msg": "Chat spike 3.6x baseline", "data": {"chat_z": 3.6}}
+{"ts": "2026-11-24T02:33:47", "type": "judged", "msg": "AI judge: 91/100 - strong emotional arc", "data": {"score": 91}}
+{"ts": "2026-11-24T02:34:28", "type": "cut", "msg": "Clip cut in 44 s", "data": {}}
+{"ts": "2026-11-24T02:37:38", "type": "candidate", "msg": "Chat spike 4.0x baseline", "data": {"chat_z": 4.0}}
+{"ts": "2026-11-24T02:37:52", "type": "judged", "msg": "AI judge: 79/100 - funny, self-contained", "data": {"score": 79}}
+{"ts": "2026-11-24T02:38:33", "type": "cut", "msg": "Clip cut in 47 s", "data": {}}
+{"ts": "2026-11-24T02:41:18", "type": "candidate", "msg": "Chat spike 4.4x baseline", "data": {"chat_z": 4.4}}
+{"ts": "2026-11-24T02:41:32", "type": "judged", "msg": "AI judge: 86/100 - Chat spike 3.1x baseline", "data": {"score": 86}}
+{"ts": "2026-11-24T02:42:13", "type": "cut", "msg": "Clip cut in 50 s", "data": {}}
+{"ts": "2026-11-24T02:46:46", "type": "candidate", "msg": "Chat spike 9.6x baseline", "data": {}}
+{"ts": "2026-11-24T02:47:03", "type": "candidate", "msg": "Chat spike 10.0x baseline", "data": {}}
+{"ts": "2026-11-24T02:51:22", "type": "candidate", "msg": "Chat spike 9.6x baseline", "data": {}}
+{"ts": "2026-11-24T02:55:15", "type": "candidate", "msg": "Chat spike 9.6x baseline", "data": {}}
+{"ts": "2026-11-24T02:55:51", "type": "candidate", "msg": "Chat spike 8.7x baseline", "data": {}}
+{"ts": "2026-11-24T02:56:27", "type": "candidate", "msg": "Chat spike 10.5x baseline", "data": {}}
+{"ts": "2026-11-24T02:58:20", "type": "candidate", "msg": "Chat spike 10.0x baseline", "data": {}}
+{"ts": "2026-11-24T02:59:16", "type": "candidate", "msg": "Chat spike 7.9x baseline", "data": {}}
+{"ts": "2026-11-24T03:00:27", "type": "candidate", "msg": "Chat spike 8.9x baseline", "data": {}}
+{"ts": "2026-11-24T03:00:59", "type": "candidate", "msg": "Chat spike 8.9x baseline", "data": {}}
+{"ts": "2026-11-24T03:02:01", "type": "candidate", "msg": "Chat spike 9.9x baseline", "data": {}}
+{"ts": "2026-11-24T03:02:27", "type": "candidate", "msg": "Chat spike 9.8x baseline", "data": {}}
+{"ts": "2026-11-24T03:03:14", "type": "candidate", "msg": "Chat spike 10.2x baseline", "data": {}}
+{"ts": "2026-11-24T03:03:36", "type": "candidate", "msg": "Chat spike 10.1x baseline", "data": {}}
+{"ts": "2026-11-24T03:03:48", "type": "candidate", "msg": "Chat spike 8.2x baseline", "data": {}}
+{"ts": "2026-11-24T03:04:54", "type": "candidate", "msg": "Chat spike 9.9x baseline", "data": {}}

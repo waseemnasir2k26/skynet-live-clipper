@@ -1,0 +1,6 @@
+studio/logs/
+studio/fixtures/data/
+__pycache__/
+*.pyc
+.pytest_cache/
+studio/recordings/

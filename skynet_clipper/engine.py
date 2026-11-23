@@ -121,9 +121,12 @@ class Engine:
                 have = sum(len(p) for _, p in self.pcm_chunks) / SR
                 if have < chunk or not self.pcm_chunks:
                     take = None
-                else:
-                    take = list(self.pcm_chunks)
-                    self.pcm_chunks.clear()
+                else:  # at most ~2 min per call so a backlog is transcribed (and judged) incrementally
+                    take, tot = [], 0.0
+                    while self.pcm_chunks and (tot < 120 or not take):
+                        a, p = self.pcm_chunks.pop(0)
+                        take.append((a, p))
+                        tot += len(p) / SR
             if take is None:
                 if self.asr is None and self.pcm_chunks:
                     with self.pcm_lock:

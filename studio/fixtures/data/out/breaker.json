@@ -1,0 +1,17 @@
+{
+  "facebook": {
+    "consecutive_failures": 0
+  },
+  "instagram": {
+    "consecutive_failures": 0
+  },
+  "tiktok": {
+    "consecutive_failures": 0
+  },
+  "youtube": {
+    "consecutive_failures": 0
+  },
+  "x": {
+    "consecutive_failures": 0
+  }
+}
