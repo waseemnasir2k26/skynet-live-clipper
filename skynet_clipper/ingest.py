@@ -95,8 +95,10 @@ class Ingest:
                     str(self.seg_dir / f"{tag}_%06d.ts")]
         if self.mode == "file":
             self.run_offset = 0.0 if not self.index.items else self.index.end
-            cmd = [FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-follow", "1",
-                   "-i", "file:" + self.cfg["source"]["file"]] + seg_args
+            # -follow only while the file is still growing: on a finished file ffmpeg's probe waits forever at EOF
+            growing = time.time() - os.path.getmtime(self.cfg["source"]["file"]) < 30
+            self.following = growing
+            cmd = [FFMPEG, "-hide_banner", "-loglevel", "error", "-y"] + (["-follow", "1"] if growing else []) +                 ["-i", "file:" + self.cfg["source"]["file"]] + seg_args
             if self.index.items:  # resume from where we were
                 cmd[cmd.index("-i"):cmd.index("-i")] = ["-ss", f"{self.index.end:.2f}"]
             self.procs = [subprocess.Popen(cmd, creationflags=BELOW_NORMAL, stdin=subprocess.DEVNULL)]
