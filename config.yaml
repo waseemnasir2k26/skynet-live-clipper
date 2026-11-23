@@ -57,9 +57,9 @@ judge:
   cmd: ["claude", "-p", "--model", "haiku", "--setting-sources", "", "--strict-mcp-config", "--tools", "Read", "--allowedTools", "Read", "--no-session-persistence"]
   frames: 5                   # frames of the window the judge looks at (vision); 0 = text only
   timeout_s: 120
-  max_calls_per_hour: 40
+  max_calls_per_hour: 120
   max_calls_per_stream: 300
-  min_score: 60               # below this the candidate is not cut
+  min_score: 55               # below this the candidate is not cut
   fallback_min_signal: 3.4    # deterministic score path when LLM unavailable
 
 clips:

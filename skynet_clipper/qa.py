@@ -15,7 +15,7 @@ from .util import FFMPEG, FFPROBE
 
 
 def probe(p: Path) -> dict:
-    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "stream=codec_type,width,height:format=duration",
+    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "stream=codec_type,width,height,duration:format=duration",
                         "-of", "json", str(p)], stdout=subprocess.PIPE)
     return json.loads(r.stdout)
 
@@ -39,7 +39,8 @@ def check_clip(d: Path, qa_dir: Path) -> dict:
     pr = probe(clip)
     dur = float(pr["format"]["duration"])
     v = [s for s in pr["streams"] if s["codec_type"] == "video"][0]
-    has_audio = any(s["codec_type"] == "audio" for s in pr["streams"])
+    aud = [s for s in pr["streams"] if s["codec_type"] == "audio"]
+    has_audio = bool(aud) and abs(float(aud[0].get("duration", 0)) - dur) < 1.0  # full-length audio, not a stub
     frames = [frame(clip, t) for t in (1.0, dur / 2, max(0.5, dur - 1.5))]
     bars = any(black_bars(f) for f in frames)
     cover = np.asarray(Image.open(d / "cover.jpg").convert("RGB").resize((405, 720)))

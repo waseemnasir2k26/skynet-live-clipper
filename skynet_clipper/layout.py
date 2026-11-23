@@ -106,13 +106,13 @@ def plan_layout(face: Box | None, src_w: int = 1920, src_h: int = 1080, out_w: i
 
 
 def filtergraph(lay: Layout, fps: int, ass: str | None, out_w: int = 1080, out_h: int = 1920,
-                badge: bool = True) -> str:
+                badge: bool = True, start: float = 0.0) -> str:
     """Input 0 = video, input 1 = badge.png (RGBA overlay with credit + watermark card)."""
     tail = (",[1:v]overlay=0:0:format=auto" if badge else "") + ",format=yuv420p" +         (f",ass=filename={ass}:fontsdir=fonts" if ass else "")
     tail = tail.replace(",[1:v]overlay", "[pre];[pre][1:v]overlay", 1)
     if lay.kind == "stack":
         c, g = lay.cam, lay.game
-        parts = [f"[0:v]fps={fps},split=2[a][b]",
+        parts = [f"[0:v]trim=start={start:.3f},setpts=PTS-STARTPTS,fps={fps},split=2[a][b]",
                  f"[a]crop={c.w}:{c.h}:{c.x}:{c.y},scale={out_w}:{lay.cam_h}:flags=lanczos,unsharp=5:5:0.5[cam]"]
         if lay.blur:
             bl = lay.blur
@@ -125,7 +125,7 @@ def filtergraph(lay: Layout, fps: int, ass: str | None, out_w: int = 1080, out_h
                      f"color=0xFFD400@1:t=fill,setsar=1{tail}[v]")
         return ";".join(parts)
     # center: blurred fill + full 16:9 frame in the middle, zoomed a bit
-    return (f"[0:v]fps={fps},split=2[a][b];"
+    return (f"[0:v]trim=start={start:.3f},setpts=PTS-STARTPTS,fps={fps},split=2[a][b];"
             f"[a]scale=-2:{out_h},crop={out_w}:{out_h},boxblur=30:4,eq=brightness=-0.15[bg];"
             f"[b]scale={out_w + 360}:-2:flags=lanczos,crop={out_w}:ih[fg];"
             f"[bg][fg]overlay=0:(H-h)/2,setsar=1{tail}[v]")

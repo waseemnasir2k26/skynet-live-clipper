@@ -59,8 +59,12 @@ class Engine:
         self.pcm_lock = threading.Lock()
         self.seg_q: queue.Queue = queue.Queue()
         self.pending: list[dict] = []
+        self.chat_hold: list = []
+        self.t_origin = 0.0
         self.pending_lock = threading.RLock()
         self.judging = 0
+        self.rendering = 0
+        self.gating = 0
         self.render_q: queue.Queue = queue.Queue()
         self.cut_ranges: list[tuple[float, float]] = []
         self.chat_count = 0
@@ -179,7 +183,7 @@ class Engine:
                             "audio_z": round(az, 2)}
             if t % 2 == 0:
                 self.out.signal(t, rate, cz, adb, az)
-            if t < d["warmup_seconds"]:
+            if t - self.t_origin < d["warmup_seconds"]:
                 continue
             done = self.spike.update(pk)
             if done:
@@ -188,7 +192,7 @@ class Engine:
                 done.kind = "chat" if chat_led else "audio"
                 self.add_candidate(center, done)
             elif t - self.last_cand_t >= d["quiet_sample_every_s"]:
-                lo, hi = max(int(self.last_cand_t + 30), d["warmup_seconds"]), t - d["window_after_s"]
+                lo, hi = max(int(self.last_cand_t + 30), int(self.t_origin) + d["warmup_seconds"]), t - d["window_after_s"]
                 best = max((self.scores[s] for s in range(lo, hi) if s in self.scores),
                            key=lambda p: p.score, default=None)
                 if best:
@@ -360,10 +364,13 @@ class Engine:
                 job = self.render_q.get(timeout=1)
             except queue.Empty:
                 continue
+            self.rendering += 1
             try:
                 self.render_one(job)
             except Exception as e:
                 self.ev("error", f"render failed: {e}")
+            finally:
+                self.rendering -= 1
 
     def take_lock(self) -> bool:
         lock = Path(self.cfg["paths"]["render_lock"])
@@ -427,7 +434,10 @@ class Engine:
                 "transcript": transcript, "title": v["title"], "caption": v["caption"],
                 "hashtags": v["hashtags"], "status": "ready"}
         self.out.write_meta(cid, meta)
-        moment_wall = self.ingest.epoch + t1
+        if getattr(self.ingest, "replay", False):
+            moment_wall = self.ingest.replay_wall0 + (t1 - self.ingest.run_offset) / self.ingest.replay_rate
+        else:
+            moment_wall = self.ingest.epoch + t1
         latency = time.time() - moment_wall
         live_moment = moment_wall >= self.started_wall
         if live_moment:
@@ -443,6 +453,7 @@ class Engine:
             threading.Thread(target=self.copyright_gate, args=(dst,), daemon=True).start()
 
     def copyright_gate(self, dst: Path) -> None:
+        self.gating += 1
         try:
             p = subprocess.run([sys.executable, str(COPYRIGHT), str(dst / "clip.mp4"), "--fast", "--windows", "4"],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600,
@@ -460,12 +471,15 @@ class Engine:
             self.ev("info", f"copyright gate {dst.name}: rc={p.returncode} {verdict}", {"tracks": tracks})
         except Exception as e:
             self.ev("error", f"copyright gate failed {dst.name}: {e}")
+        finally:
+            self.gating -= 1
 
     # ------------------------------------------------------------------ supervisor
     def write_state(self) -> None:
         with self.words_lock:
             tail = " ".join(w.roman for w in self.words[-14:])
-        live = self.ingest.alive() and (self.ingest.mode == "live" or self.ingest.file_growing())
+        live = self.ingest.alive() and self.run_mode() == "live" and \
+            (self.ingest.mode == "live" or self.ingest.file_growing())
         self.out.state({"stream_url": self.cfg["source"]["url"], "streamer": self.cfg["source"]["streamer"],
                         "stream_title": self.cfg["source"]["stream_title"], "live": bool(live),
                         "started_at": self.started_at, "captured_seconds": round(self.ingest.index.end, 1),
@@ -473,7 +487,7 @@ class Engine:
                         "clips_ready": self.clips_ready, "last_heartbeat": now_iso(),
                         "current_signals": getattr(self, "cur_sig", {"chat_rate": 0, "chat_z": 0, "audio_db": -60,
                                                                      "audio_z": 0}),
-                        "last_transcript_line": tail})
+                        "last_transcript_line": tail, "mode": self.run_mode()})
         atomic_write_json(self.stats_path, {"llm_calls": self.llm_calls, "llm_failures": self.llm_fail,
                                             "candidates_seen": self.cands_seen, "clips_ready": self.clips_ready,
                                             "chat_messages": self.chat_count, "captured_seconds": self.ingest.index.end,
@@ -519,6 +533,14 @@ class Engine:
             log(f"live_status check failed: {e}")
             return False
 
+    def run_mode(self) -> str:
+        """Additive state field: live | replay | vod (never shows a replay as live)."""
+        if getattr(self.ingest, "replay", False):
+            return "replay"
+        if self.ingest.mode == "live" or getattr(self.ingest, "following", False):
+            return "live"
+        return "vod"
+
     def check_light_mode(self) -> None:
         if self.light:
             return
@@ -541,6 +563,10 @@ class Engine:
             return "stopped"
         self.ev("info", f"engine start: {cfg['source']['mode']} {cfg['source']['url']}", {"pid": os.getpid()})
         self.ingest.start()
+        self.t_origin = float(self.ingest.run_offset) if getattr(self.ingest, "replay", False) else 0.0
+        if self.t_origin:  # replay from mid-stream: signals, ASR and judging start at the replay point
+            self.det_t = int(self.t_origin) - 1
+            self.audio_t = self.asr_t = self.last_cand_t = self.t_origin
         for fn in (self.audio_worker, self.asr_worker, self.judge_worker, self.render_worker):
             threading.Thread(target=fn, daemon=True, name=fn.__name__).start()
         steps, last_state, last_hb, backoff_i = 0, 0.0, 0.0, 0
@@ -561,8 +587,19 @@ class Engine:
                 for item in self.ingest.poll_segments():
                     self.seg_q.put(item)
                 for m in self.ingest.poll_chat():
-                    self.chat_count += 1
-                    self.tl.add_chat(m.ts - self.ingest.epoch, m.text, m.is_super)
+                    use_off = self.cfg["source"].get("chat_time") == "offset" and m.offset is not None
+                    self.chat_hold.append((m.offset if use_off else m.ts - self.ingest.epoch, m))
+                # replay: a chat message only "arrives" once the replayed video has reached it
+                horizon = self.ingest.index.end + 3 if getattr(self.ingest, "replay", False) else float("inf")
+                keep = []
+                for tc, m in self.chat_hold:
+                    if tc <= horizon:
+                        if not getattr(self.ingest, "replay", False) or tc >= self.ingest.run_offset:
+                            self.chat_count += 1
+                            self.tl.add_chat(tc, m.text, m.is_super)
+                    else:
+                        keep.append((tc, m))
+                self.chat_hold = keep
                 self.detect_step()
                 if not self.ingest.alive() and not self.ingest.disk_stopped:
                     if self.ingest.mode == "file" and not self.ingest.file_growing():
@@ -621,7 +658,7 @@ class Engine:
                 finished = (not self.ingest.alive()) and self.seg_q.empty() and self.ingest.mode == "file" and \
                     not self.ingest.file_growing()
                 if finished and self.det_t >= int(self.audio_t) - 1 and self.asr_t >= self.audio_t - 1 and \
-                        not self.pending and not self.judging and self.render_q.empty():
+                        not self.pending and not self.judging and self.render_q.empty() and not self.rendering                         and not self.gating:
                     if now - self.ingest.last_growth > 120:
                         reason = "ended"
                         self.ev("info", "all captured material processed; stream ended")
@@ -634,7 +671,7 @@ class Engine:
             self.ingest.stop()
             # let an in-flight render finish (bounded)
             t_end = time.time() + 600
-            while (not self.render_q.empty()) and time.time() < t_end and reason != "stopped":
+            while (not self.render_q.empty() or self.rendering or self.gating) and time.time() < t_end                     and reason != "stopped":
                 time.sleep(2)
             self.stop_flag.set()
             self.write_state()

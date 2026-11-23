@@ -24,14 +24,36 @@ def main() -> int:
     ap.add_argument("--live", help="live URL (YouTube / Twitch / Kick); overrides config source")
     ap.add_argument("--file", help="follow an existing capture file (growing or finished VOD)")
     ap.add_argument("--chat", help="yt-dlp live_chat json for --file mode")
+    ap.add_argument("--start-epoch", type=float, default=None,
+                    help="wall-clock epoch of t=0 in --file (maps wall-timed live chat onto a VOD)")
+    ap.add_argument("--replay", action="store_true",
+                    help="replay --file through the real-time path (state.json mode=replay, never 'live')")
+    ap.add_argument("--replay-from", type=float, default=0.0, help="replay start second")
+    ap.add_argument("--replay-to", type=float, default=0.0, help="replay end second (0 = end of file)")
+    ap.add_argument("--replay-rate", type=float, default=1.0, help="replay speed (1.0 = real time)")
+    ap.add_argument("--vod", action="store_true", help="--file is a finished VOD: chat timed by video offset")
     ap.add_argument("--profile", choices=["full", "light"], default=None, help="light = VPS / no GPU profile")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
     cfg["_config_path"] = a.config
     if a.live:
-        cfg["source"].update(mode="live", url=a.live)
+        cfg["source"].update(mode="live", url=a.live, start_epoch=0)
+        try:  # real title/channel of this stream for meta.json
+            import subprocess
+            t = subprocess.run(["yt-dlp", "--no-warnings", "--print", "%(title)s", a.live], stdout=subprocess.PIPE,
+                               timeout=90).stdout.decode("utf-8", "replace").strip()
+            if t:
+                cfg["source"]["stream_title"] = t.splitlines()[0][:150]
+        except Exception:
+            pass
     if a.file:
-        cfg["source"].update(mode="file", file=a.file, chat_file=a.chat or "")
+        cfg["source"].update(mode="file", file=a.file, chat_file=a.chat or "",
+                             chat_time="offset" if a.vod else cfg["source"].get("chat_time", "wall"))
+    if a.replay:
+        cfg["source"]["replay"] = {"enabled": True, "from_s": a.replay_from, "rate": a.replay_rate,
+                                   "to_s": a.replay_to}
+    if a.start_epoch:
+        cfg["source"]["start_epoch"] = a.start_epoch
     if a.profile == "light":
         lm = cfg["safety"]["light_mode"]
         cfg["asr"].update(model=lm["asr_model"], device=lm["asr_device"], compute_type="int8", beam_size=1)

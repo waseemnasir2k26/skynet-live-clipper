@@ -61,6 +61,7 @@ class ChatMsg:
     author: str
     text: str
     amount: str = ""   # superchat amount text, "" if none
+    offset: float | None = None  # seconds into the video (replay chat / VOD), if provided
 
     @property
     def is_super(self) -> bool:
@@ -82,7 +83,12 @@ def _runs_text(runs: list) -> str:
 
 def parse_chat_line(obj: dict) -> list[ChatMsg]:
     """Parse one yt-dlp live_chat JSONL line into messages (YouTube format)."""
-    acts = obj.get("replayChatItemAction", {}).get("actions", [])
+    rep = obj.get("replayChatItemAction", {})
+    acts = rep.get("actions", [])
+    try:
+        off = int(rep["videoOffsetTimeMsec"]) / 1000.0
+    except (KeyError, TypeError, ValueError):
+        off = None
     out = []
     for a in acts:
         item = a.get("addChatItemAction", {}).get("item", {})
@@ -97,7 +103,7 @@ def parse_chat_line(obj: dict) -> list[ChatMsg]:
             text = _runs_text(r.get("message", {}).get("runs", []))
             author = r.get("authorName", {}).get("simpleText", "")
             amt = r.get("purchaseAmountText", {}).get("simpleText", "") if key == "liveChatPaidMessageRenderer" else ""
-            out.append(ChatMsg(ts, author, text, amt))
+            out.append(ChatMsg(ts, author, text, amt, off))
     return out
 
 

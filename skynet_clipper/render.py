@@ -78,7 +78,7 @@ def ass_escape(s: str) -> str:
     return s.replace("\\", "").replace("{", "(").replace("}", ")").replace("\n", " ")
 
 
-def wrap_title(title: str, max_chars: int = 20) -> str:
+def wrap_title(title: str, max_chars: int = 24) -> str:
     words, lines, cur = title.split(), [], ""
     for w in words:
         if cur and len(cur) + 1 + len(w) > max_chars:
@@ -88,7 +88,7 @@ def wrap_title(title: str, max_chars: int = 20) -> str:
             cur = (cur + " " + w).strip()
     if cur:
         lines.append(cur)
-    return r"\N".join(lines[:2])
+    return r"\N".join(lines[:3])  # never silently drop words (a 3rd line beats a cut-off hook)
 
 
 def build_ass(words: list[Word], t0: float, dur: float, title: str, credit: str, watermark: str,
@@ -135,28 +135,32 @@ def render_clip(work: Path, segs: list[tuple[str, float, float]], t0: float, t1:
     rc = cfg["render"]
     fps = int(rc.get("fps", 60))
     make_badge(lay, work / "badge.png", credit, watermark, str(FONT_DIR / "Montserrat-ExtraBold.ttf"))
-    fg = filtergraph(lay, fps, "cap.ass")
+    fg = filtergraph(lay, fps, "cap.ass", start=t0 - base)  # trim in-graph: input -ss on concat breaks VP9
     venc = (["-c:v", "h264_nvenc"] + rc["nvenc_args"]) if encoder == "h264_nvenc" else (["-c:v", "libx264"] + rc["x264_args"])
-    hw = ["-hwaccel", "cuda"] if encoder == "h264_nvenc" else []
-    cmd = [FFMPEG, "-hide_banner", "-y"] + hw + ["-f", "concat", "-safe", "0", "-ss", f"{t0 - base:.3f}",
-                                                 "-i", "list.txt", "-loop", "1", "-i", "badge.png", "-t", f"{dur:.3f}", "-filter_complex", fg,
+    # CUDA decode only for H.264/HEVC TS segments; the VP9 cuvid path crashed on VOD segments ("Internal bug")
+    hw = ["-hwaccel", "cuda"] if encoder == "h264_nvenc" and segs[0][0].endswith(".ts") else []
+    if encoder == "nvenc_swdec":
+        venc = ["-c:v", "h264_nvenc"] + rc["nvenc_args"]
+    cmd = [FFMPEG, "-hide_banner", "-y"] + hw + ["-f", "concat", "-safe", "0", 
+                                                 "-i", "list.txt", "-i", "badge.png", "-t", f"{dur:.3f}", "-filter_complex", fg,
                                                  "-map", "[v]", "-map", "0:a:0"] + venc + [
-        "-af", f"loudnorm=I={rc['loudness_lufs']}:TP=-1.5:LRA=11,aresample=48000", "-c:a", "aac", "-b:a", "160k",
+        "-af", f"atrim=start={t0 - base:.3f},asetpts=PTS-STARTPTS,loudnorm=I={rc['loudness_lufs']}:TP=-1.5:LRA=11,aresample=48000", "-c:a", "aac", "-b:a", "160k",
         "-pix_fmt", "yuv420p", "-movflags", "+faststart", "clip.mp4"]
     try:
         run_ff(cmd, cwd=str(work))
     except RuntimeError:
-        if encoder != "h264_nvenc":
+        nxt = {"h264_nvenc": "nvenc_swdec", "nvenc_swdec": "libx264"}.get(encoder)
+        if not nxt:
             raise
-        return render_clip(work, segs, t0, t1, lay, words, title, credit, watermark, cfg, "libx264")
+        return render_clip(work, segs, t0, t1, lay, words, title, credit, watermark, cfg, nxt)
     return {"path": work / "clip.mp4", "encoder": encoder, "duration": dur, "filtergraph": fg, "base": base}
 
 
 def render_cover(work: Path, t_rel: float, base_off: float, lay: Layout, title: str, credit: str) -> Path:
     """Best frame without captions + big title, credit."""
     from PIL import Image, ImageDraw, ImageFont
-    fg = filtergraph(lay, 30, None)
-    run_ff([FFMPEG, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-ss", f"{base_off + t_rel:.3f}", "-i", "list.txt",
+    fg = filtergraph(lay, 30, None, start=base_off + t_rel)
+    run_ff([FFMPEG, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", "list.txt",
             "-i", "badge.png", "-filter_complex", fg, "-map", "[v]", "-frames:v", "1", "cover_raw.png"], cwd=str(work))
     im = Image.open(work / "cover_raw.png").convert("RGB")
     d = ImageDraw.Draw(im)

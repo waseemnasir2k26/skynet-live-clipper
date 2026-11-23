@@ -64,6 +64,31 @@ Linux / VPS: `sudo bash deploy/install.sh`, then `systemctl enable --now skynet-
 meant for 4 vCPU / 8 GB without a GPU: capture + chat/audio detection + `small` whisper int8 on CPU + libx264
 veryfast, one clip at a time, systemd caps CPU at 300% and memory at 5 GB.
 
+## Modes (state.json `mode` = live | replay | vod)
+
+- `live`: own capture of a live URL, or following a capture file that is still growing.
+- `vod`: a finished file (`--file`), processed as fast as the box allows. `--start-epoch` maps a wall-timed live chat
+  file onto a VOD (offset found by audio cross-correlation, see below).
+- `replay`: `--file X --replay [--replay-from S] [--replay-rate 1.0]` feeds a recording through the exact real-time
+  path (ffmpeg `-readrate`, chat released only when the video reaches it). For screen recording the dashboard; it is
+  always labelled `replay`, never `live`, and its moment-to-clip latency is measured against replay time.
+
+## Channel watcher
+
+`py -3.11 watch.py --channel https://www.youtube.com/@CarryisLive/streams --every 300` polls `<channel>/live` with
+one metadata-only yt-dlp call, starts `run.py --live <url>` when the channel is live, and goes back to polling when
+the engine exits. Never starts a second engine; caps on polls, hours and starts per day. Log
+`C:\clipper-data\watch.log`. Stop the watcher only: create `C:\clipper-data\WATCH-STOP`; `STOP` stops both.
+
+## Heavy lane (after the laptop's full-power window): Kaggle -> Colab -> VPS light
+
+`py -3.11 -m skynet_clipper.kaggle_lane pack CHUNK.mkv [CHAT.json] --start-epoch E`, then `push <slug>` and
+`pull <slug>`. It uploads a PRIVATE dataset (chunk + chat + this repo's code, no secrets) and a PRIVATE GPU kernel
+(2x T4) that runs the same engine in `vod` mode with large-v3 whisper on CUDA and libx264. The claude CLI judge
+is not available there, so clips get the deterministic fallback score; re-judge on the laptop later. Status: written,
+pack step only checked; push/pull NOT run yet. Colab (needs a browser tab) and the VPS light profile
+(`deploy/`) are the next lanes.
+
 ## Safety and caps (all in `config.yaml`)
 
 - `safety.max_steps`, `safety.max_wall_hours`, `judge.max_calls_per_hour`, `judge.max_calls_per_stream`,

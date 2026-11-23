@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 from .signals import ChatMsg, parse_chat_line
-from .util import BELOW_NORMAL, FFMPEG, YTDLP, log
+from .util import BELOW_NORMAL, FFMPEG, FFPROBE, YTDLP, log
 
 
 class SegmentIndex:
@@ -86,14 +86,31 @@ class Ingest:
         self.run_no += 1
         seg_s = str(self.cfg["ingest"]["segment_seconds"])
         tag = f"{self.mode[0]}{int(self.epoch)}_{int(time.time())}_{self.run_no:03d}"
+        ext = "ts"
+        if self.mode == "file":  # VP9/AV1 VODs cannot go into MPEG-TS
+            pr = subprocess.run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name",
+                                 "-of", "csv=p=0", self.cfg["source"]["file"]], stdout=subprocess.PIPE, timeout=60)
+            if pr.stdout.decode().strip() not in ("h264", "hevc", ""):
+                ext = "mkv"
         self._list_path = self.seg_dir / f"list_{tag}.csv"
         self._list_pos = 0
         start_no = len(self.index.items)
         seg_args = ["-map", "0:v:0", "-map", "0:a:0", "-c", "copy", "-f", "segment", "-segment_time", seg_s,
                     "-segment_list", str(self._list_path), "-segment_list_type", "csv",
-                    "-segment_start_number", str(start_no), "-reset_timestamps", "0",
-                    str(self.seg_dir / f"{tag}_%06d.ts")]
-        if self.mode == "file":
+                    "-segment_start_number", str(start_no), "-reset_timestamps", "1",
+                    str(self.seg_dir / f"{tag}_%06d.{ext}")]
+        rp = self.cfg["source"].get("replay") or {}
+        self.replay = bool(rp.get("enabled"))
+        if self.mode == "file" and self.replay and not self.index.items:
+            # REPLAY: feed a recording through the real-time path at `rate` x speed, starting at `from_s`
+            self.following = False
+            self.run_offset = float(rp.get("from_s", 0))
+            self.replay_rate = float(rp.get("rate", 1.0))
+            self.replay_wall0 = time.time()
+            cmd = [FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-readrate", str(self.replay_rate),
+                   "-ss", f"{self.run_offset:.2f}", "-i", "file:" + self.cfg["source"]["file"]] +                 (["-t", f"{float(rp['to_s']) - self.run_offset:.2f}"] if rp.get("to_s") else []) + seg_args
+            self.procs = [subprocess.Popen(cmd, creationflags=BELOW_NORMAL, stdin=subprocess.DEVNULL)]
+        elif self.mode == "file":
             self.run_offset = 0.0 if not self.index.items else self.index.end
             # -follow only while the file is still growing: on a finished file ffmpeg's probe waits forever at EOF
             growing = time.time() - os.path.getmtime(self.cfg["source"]["file"]) < 30
@@ -167,6 +184,8 @@ class Ingest:
     def file_growing(self) -> bool:
         if self.mode != "file":
             return True
+        if not getattr(self, "following", True):
+            return False  # finished file: ffmpeg read it without -follow
         try:
             st = os.path.getmtime(self.cfg["source"]["file"])
         except OSError:
