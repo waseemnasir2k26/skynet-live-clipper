@@ -220,6 +220,8 @@
         color: #ffd9cf;
         background: rgba(238, 106, 85, 0.12);
       }
+      .pill.mode { font-size: 14px; padding: 6px 14px; }
+      .stat .lab.sub { font-size: 14px; margin-top: 6px; opacity: .8; }
       .pill.off {
         color: var(--muted);
       }
@@ -957,7 +959,8 @@
             <p id="lvTitle">No stream data yet</p>
           </div>
           <div style="display: flex; gap: 14px; align-items: center">
-            <span class="pill off" id="lvUp">Uptime 00:00:00</span
+            <span class="pill off mode" id="lvMode" hidden></span
+            ><span class="pill off" id="lvUp">Uptime 00:00:00</span
             ><span class="pill off" id="lvPill"
               ><span class="dot"></span><span id="lvTxt">OFFLINE</span></span
             >
@@ -972,7 +975,8 @@
             <span class="lab">Chat messages read</span><b id="sChat">0</b>
           </div>
           <div class="card stat">
-            <span class="lab">Moments spotted</span><b id="sMom">0</b>
+            <span class="lab">Moments judged</span><b id="sMom">0</b
+            ><span class="lab sub" id="sRej"></span>
           </div>
           <div class="card stat hot">
             <span class="lab">Clips ready</span><b id="sClips">0</b>
@@ -1410,21 +1414,26 @@
         $("#lvTitle").textContent = s
           ? s.stream_title || s.stream_url || ""
           : "No stream data yet. Start the engine or add a stream under Connections.";
-        const on = S.engine_online && st.live,
+        const rep = st.mode === "replay",
+          on = S.engine_online && (st.live || rep),
           p = $("#lvPill");
-        p.className = "pill " + (on ? "live" : "off");
+        p.className = "pill " + (on ? (rep ? "warn" : "live") : "off");
+        $("#lvMode").textContent = st.mode ? (rep ? "Mode: replay" : "Mode: " + st.mode) : "";
+        $("#lvMode").hidden = !st.mode;
         $("#lvTxt").textContent = on
-          ? "LIVE"
+          ? (rep ? "REPLAY" : "LIVE")
           : S.engine_online
             ? "ENGINE UP, STREAM OFFLINE"
             : s
               ? "ENGINE OFFLINE"
               : "NO ENGINE DATA";
+        const T = S.totals; /* per-stream totals (all engine runs); state.json counts one run only */
         $("#sHours").innerHTML =
-          ((st.captured_seconds || 0) / 3600).toFixed(1) + "<small>h</small>";
-        $("#sChat").textContent = fmtN(st.chat_messages);
-        $("#sMom").textContent = fmtN(st.candidates_seen);
-        $("#sClips").textContent = fmtN(st.clips_ready);
+          ((T ? T.watched_seconds : st.captured_seconds || 0) / 3600).toFixed(1) + "<small>h</small>";
+        $("#sChat").textContent = fmtN(T ? T.chat_messages : st.chat_messages);
+        $("#sMom").textContent = fmtN(T ? T.candidates : st.candidates_seen);
+        $("#sRej").textContent = T ? fmtN(T.rejected_unsafe) + " rejected as unsafe" : "";
+        $("#sClips").textContent = fmtN(S.clips_total != null ? S.clips_total : st.clips_ready);
         $("#lvTr").textContent = st.last_transcript_line
           ? "“" + st.last_transcript_line + "”"
           : "Nothing heard yet";
@@ -1446,7 +1455,9 @@
           const el = (Date.now() + skew - new Date(S.state.started_at)) / 1000;
           $("#lvUp").textContent = "Uptime " + hhmmss(el);
         } else if (S && S.state)
-          $("#lvUp").textContent = "Uptime " + hhmmss(S.state.captured_seconds);
+          $("#lvUp").textContent = S.totals
+            ? "Watched " + hhmmss(S.totals.watched_seconds)
+            : "Uptime " + hhmmss(S.state.captured_seconds);
       }, 1000);
 
       /* ---------- CLIPS ---------- */

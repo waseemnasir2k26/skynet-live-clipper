@@ -45,8 +45,10 @@ def jtail(p, n):
 
 
 def parse_ts(s):
+    """Engine timestamps carry a UTC offset (+08:00); compare as local naive times."""
     try:
-        return datetime.fromisoformat(s)
+        d = datetime.fromisoformat(s)
+        return d.astimezone().replace(tzinfo=None) if d.tzinfo else d
     except Exception:
         return None
 
@@ -75,6 +77,58 @@ def clips():
     return out
 
 
+_TOT = {"key": None, "val": None}
+_HB = re.compile(r"t=(\d+(?:\.\d+)?)s chat=(\d+) cands=(\d+) clips=(\d+) llm=(\d+) asr=(\d+(?:\.\d+)?)s")
+
+
+def stream_totals():
+    """Per-stream totals from events.jsonl. state.json counts per engine run (per replay leg); a stream
+    replayed in several legs needs the sum of each run's last heartbeat. Hours = sum of (last t - first asr)."""
+    p = Path(paths.EVENTS)
+    try:
+        key = (p.stat().st_mtime, p.stat().st_size)
+    except OSError:
+        return None
+    if _TOT["key"] == key:
+        return _TOT["val"]
+    runs, cur, rejected, cands, judged = [], None, 0, 0, 0
+    try:
+        lines = p.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return None
+    for ln in lines:
+        try:
+            e = json.loads(ln)
+        except Exception:
+            continue
+        t, msg = e.get("type"), e.get("msg", "")
+        if t == "info" and msg.startswith("engine start"):
+            cur = {"from": None, "t": 0.0, "chat": 0, "llm": 0}
+            runs.append(cur)
+        elif t == "heartbeat":
+            m = _HB.search(msg)
+            if not m:
+                continue
+            if cur is None:
+                cur = {"from": None, "t": 0.0, "chat": 0, "llm": 0}
+                runs.append(cur)
+            tt, chat, _c, _k, llm, asr = m.groups()
+            if cur["from"] is None:
+                cur["from"] = float(asr)
+            cur.update(t=float(tt), chat=int(chat), llm=int(llm))
+        elif t == "candidate":
+            cands += 1
+        elif t == "judged":
+            judged += 1
+        elif t == "info" and msg.startswith("rejected as unsafe"):
+            rejected += 1
+    secs = sum(max(0.0, r["t"] - (r["from"] or 0.0)) for r in runs if r["t"] > 0)
+    val = {"runs": len(runs), "watched_seconds": round(secs, 1), "chat_messages": sum(r["chat"] for r in runs),
+           "candidates": cands, "judged": judged, "rejected_unsafe": rejected}
+    _TOT.update(key=key, val=val)
+    return val
+
+
 def api_state():
     st = jread(paths.STATE, None)
     now = datetime.now()
@@ -84,7 +138,7 @@ def api_state():
     cl = clips()
     return {"state": st, "engine_online": online, "heartbeat_age_s": age, "fixtures": paths.FIXTURES,
             "stopped": core.stopped(), "now": now.isoformat(timespec="seconds"),
-            "clips_total": len(cl), "clips_pending": sum(1 for c in cl if c["decision"] == "pending"),
+            "clips_total": len(cl), "totals": stream_totals(), "clips_pending": sum(1 for c in cl if c["decision"] == "pending"),
             "data_dir": str(paths.OUT)}
 
 
