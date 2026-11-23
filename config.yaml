@@ -1,0 +1,93 @@
+# skynet-live-clipper engine config. One file; every cap lives here, not in prompts.
+
+source:
+  # mode: live  -> own capture of `url` with yt-dlp (YouTube / Twitch / Kick)
+  # mode: file  -> follow an existing (growing or finished) capture file
+  mode: file
+  url: "https://www.youtube.com/watch?v=ipZCIW7DNJo"
+  streamer: "CarryisLive"
+  credit: "@CarryisLive"
+  stream_title: "CarryMinati GTA VI live"
+  # file mode only
+  file: "C:/Users/info/OneDrive/Desktop/GITHUB/_VIDEO/LIVE-CLIPPER-2026-11-24/capture/carry_1795458619.mp4"
+  chat_file: "C:/Users/info/OneDrive/Desktop/GITHUB/_VIDEO/LIVE-CLIPPER-2026-11-24/capture/chat_1795458620.live_chat.json.part"
+  start_epoch: 0            # 0 = parse from file name carry_<epoch>.mp4
+  stall_end_seconds: 240    # file stops growing this long => stream treated as ended
+  live_format: "312+234/311+234/301/300/best[height<=1080]/best"
+
+paths:
+  data_root: "C:/clipper-data"
+  out_root: "C:/clipper-data/out"
+  render_lock: "C:/Users/info/OneDrive/Desktop/GITHUB/_VIDEO/RENDER.lock"
+  stop_file: "C:/clipper-data/STOP"
+
+ingest:
+  segment_seconds: 10
+  keep_segments_hours: 8      # prune older segments (clips already cut stay in out/)
+  min_free_gb: 40             # disk guard: stop capture below this
+  restart_backoff_s: [5, 15, 30, 60]
+
+detect:
+  baseline_seconds: 600       # rolling baseline window
+  warmup_seconds: 90          # no triggers before this much signal
+  chat_window_s: 10
+  chat_z_trigger: 2.5
+  audio_z_trigger: 2.8
+  combined_trigger: 2.2
+  hype_weight: 0.6
+  chat_lag_s: 12              # viewers react this long after the moment
+  window_before_s: 55         # judge window before the peak
+  window_after_s: 20
+  min_gap_s: 45               # dedupe: peaks closer than this merge
+  quiet_sample_every_s: 300   # no trigger for this long => judge best window anyway
+  keyword_boost: 1.0
+
+asr:
+  enabled: true
+  model: "large-v3"
+  light_model: "small"
+  device: "cuda"
+  compute_type: "float16"
+  language: "hi"
+  chunk_seconds: 30
+  beam_size: 2
+
+judge:
+  enabled: true
+  cmd: ["claude", "-p", "--model", "haiku", "--setting-sources", "", "--strict-mcp-config", "--tools", "", "--no-session-persistence"]
+  timeout_s: 120
+  max_calls_per_hour: 40
+  max_calls_per_stream: 300
+  min_score: 58               # below this the candidate is not cut
+  fallback_min_signal: 3.4    # deterministic score path when LLM unavailable
+
+clips:
+  max_per_hour: 8
+  min_len: 20
+  max_len: 55
+  watermark: "clipped by AI"
+  hook_seconds: 2.6
+  copyright_gate: true
+
+render:
+  width: 1080
+  height: 1920
+  encoder: "h264_nvenc"
+  fallback_encoder: "libx264"
+  nvenc_args: ["-preset", "p5", "-rc", "vbr", "-cq", "20", "-b:v", "0", "-maxrate", "12M", "-bufsize", "24M"]
+  x264_args: ["-preset", "veryfast", "-crf", "21"]
+  loudness_lufs: -14
+  lock_if_longer_than_s: 60
+  # facecam box in source pixels [x, y, w, h]; null = auto-detect once per stream
+  facecam_override: null
+  layout: "stack"             # stack | pip | center
+
+safety:
+  max_steps: 200000           # supervisor loop iterations
+  max_wall_hours: 14
+  full_power_until: "2026-11-24T10:00:00+08:00"
+  light_mode:                 # applied automatically after full_power_until
+    asr_model: "small"
+    asr_device: "cpu"
+    max_per_hour: 3
+    encoder: "libx264"

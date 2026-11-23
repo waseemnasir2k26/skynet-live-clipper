@@ -1,0 +1,6 @@
+numpy
+pyyaml
+pillow
+opencv-python-headless>=4.8
+faster-whisper>=1.0
+pytest
