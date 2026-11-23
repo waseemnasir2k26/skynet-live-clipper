@@ -113,7 +113,7 @@ class Ingest:
         elif self.mode == "file":
             self.run_offset = 0.0 if not self.index.items else self.index.end
             # -follow only while the file is still growing: on a finished file ffmpeg's probe waits forever at EOF
-            growing = time.time() - os.path.getmtime(self.cfg["source"]["file"]) < 30
+            growing = self.cfg["source"].get("follow", "auto") != "never" and (time.time() - os.path.getmtime(self.cfg["source"]["file"]) < 30)
             self.following = growing
             cmd = [FFMPEG, "-hide_banner", "-loglevel", "error", "-y"] + (["-follow", "1"] if growing else []) +                 ["-i", "file:" + self.cfg["source"]["file"]] + seg_args
             if self.index.items:  # resume from where we were

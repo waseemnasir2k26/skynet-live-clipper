@@ -123,7 +123,8 @@ class Engine:
         while not self.stop_flag.is_set():
             with self.pcm_lock:
                 have = sum(len(p) for _, p in self.pcm_chunks) / SR
-                if have < chunk or not self.pcm_chunks:
+                tail_flush = bool(self.pcm_chunks) and not self.ingest.alive() and self.seg_q.empty()
+                if (have < chunk and not tail_flush) or not self.pcm_chunks:  # flush the last <30 s at end of input
                     take = None
                 else:  # at most ~2 min per call so a backlog is transcribed (and judged) incrementally
                     take, tot = [], 0.0

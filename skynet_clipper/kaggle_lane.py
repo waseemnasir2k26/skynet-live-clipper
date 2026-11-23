@@ -33,7 +33,7 @@ tarfile.open(src).extractall("/kaggle/working/app")
 chunk = [p for p in glob.glob("/kaggle/input/**/*", recursive=True) if p.endswith((".mkv", ".mp4", ".ts"))][0]
 chat = (glob.glob("/kaggle/input/**/*.live_chat.json", recursive=True) or [""])[0]
 cfg = yaml.safe_load(open("/kaggle/working/app/config.yaml"))
-cfg["source"].update(mode="file", file=chunk, chat_file=chat, start_epoch=__EPOCH__, stall_end_seconds=1)
+cfg["source"].update(mode="file", file=chunk, chat_file=chat, start_epoch=__EPOCH__, stall_end_seconds=1, follow="never")
 cfg["paths"].update(data_root="/kaggle/working/data", out_root="/kaggle/working/out",
                     render_lock="/kaggle/working/RENDER.lock", stop_file="/kaggle/working/STOP")
 cfg["asr"].update(model="large-v3", device="cuda", compute_type="float16")
