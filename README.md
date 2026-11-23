@@ -25,8 +25,9 @@ live URL ──► yt-dlp + ffmpeg ──► 10 s segments ─┬─► audio lo
    candidate per excursion. Chat-led peaks are shifted back by the viewer reaction lag (12 s). If nothing fires for
    5 minutes, the best window in that span is still judged, so quiet stretches are not ignored.
 4. **LLM judge.** Headless `claude -p --model haiku` gets the transcript window, loudness peaks, chat bursts and
-   the chat messages, and returns strict JSON: score 0-100, reason, start/end (20-55 s, hook first), title, caption,
-   hashtags. Calls are capped per hour and per stream. If the CLI is missing, fails or the cap is hit, a deterministic
+   the chat messages, plus 5 frames of the window it opens with its Read tool (so it sees what happens on screen), and returns strict JSON: score 0-100, reason, start/end (20-55 s, hook first), title, caption,
+   hashtags, `safe`. Windows that show sexual content, strip-club / lap-dance scenes or a streamer-pixelated
+   scene are rejected as unsafe for Shorts (found on this stream: GTA VI club scenes). Calls are capped per hour and per stream. If the CLI is missing, fails or the cap is hit, a deterministic
    signal-based score and window are used instead (marked in `reasons`).
 5. **Cut + design.** Facecam found once per stream (OpenCV YuNet face detector over 12 frames; override in config).
    Stacked layout: zoomed facecam on top, gameplay below, a yellow divider, word-timed captions (2-3 words, active

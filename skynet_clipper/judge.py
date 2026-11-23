@@ -23,6 +23,7 @@ Transcript (stream-second: words, Hindi in Devanagari or roman):
 Chat messages during/after the window (viewer reactions, may lag ~10 s):
 {chat}
 
+{frames}
 Pick the best self-contained clip inside the window: 20-55 seconds, starts right before the hook so
 the first 2 seconds already grab attention, ends after the payoff / complete thought (never mid-sentence).
 Reply with ONLY one JSON object, no prose, no code fence:
@@ -30,11 +31,21 @@ Reply with ONLY one JSON object, no prose, no code fence:
 "start": <stream second>, "end": <stream second>,
 "title": "<hook title, max 6 words, Roman Hinglish or English, no emojis, no quotes>",
 "caption": "<1-2 line social caption, Roman Hinglish, max 150 chars>",
-"hashtags": ["#tag", "..."] }}"""
+"hashtags": ["#tag", "..."],
+"safe": <false if the window shows or centres on sexual content, nudity, a strip club / lap dance, a pixelated
+or censored scene, gore close-ups, or real-world hate; otherwise true>,
+"on_screen": "<one short line: what the frames show>"}}
+An unsafe window must also get a score below 30."""
 
 
-def build_prompt(streamer: str, title: str, w0: float, w1: float, sig: str, lines: list[str], chat: list[str]) -> str:
-    return PROMPT.format(streamer=streamer, title=title, w0=w0, w1=w1, sig=sig,
+def build_prompt(streamer: str, title: str, w0: float, w1: float, sig: str, lines: list[str], chat: list[str],
+                 frames: list[tuple[float, str]] | None = None) -> str:
+    fr = ""
+    if frames:
+        fr = ("Video frames from this window (full stream picture: gameplay + facecam). Open EVERY one with the Read "
+              "tool before answering and use them to understand what actually happens on screen:\n" +
+              "\n".join(f"- stream second {t:.0f}: {p}" for t, p in frames) + "\n")
+    return PROMPT.format(streamer=streamer, title=title, w0=w0, w1=w1, sig=sig, frames=fr,
                          transcript="\n".join(lines) or "(no speech detected)",
                          chat="\n".join(f"- {c}" for c in chat) or "(none)")
 
@@ -56,7 +67,8 @@ def parse_reply(txt: str, w0: float, w1: float, min_len: float, max_len: float) 
     tags = [t if str(t).startswith("#") else "#" + str(t) for t in (d.get("hashtags") or [])][:6]
     return {"score": max(0.0, min(100.0, score)), "reason": str(d.get("reason", ""))[:200], "start": s, "end": e,
             "title": str(d.get("title", "")).strip().strip('"')[:60], "caption": str(d.get("caption", ""))[:220],
-            "hashtags": [re.sub(r"\s+", "", str(t)) for t in tags]}
+            "hashtags": [re.sub(r"\s+", "", str(t)) for t in tags],
+            "safe": d.get("safe", True) is not False, "on_screen": str(d.get("on_screen", ""))[:200]}
 
 
 def fix_bounds(s: float, e: float, w0: float, w1: float, min_len: float, max_len: float) -> tuple[float, float]:

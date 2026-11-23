@@ -23,7 +23,7 @@ from .layout import Box, detect_face, grab_frame, plan_layout
 from .render import measure_loudness, render_clip, render_cover
 from .signals import (HourBudget, Peak, RollingZ, SpikeDetector, Timeline, combined_score, keyword_hits,
                       overlaps_any)
-from .util import YTDLP, log, set_log
+from .util import BELOW_NORMAL, FFMPEG, YTDLP, log, run_ff, set_log
 
 COPYRIGHT = Path.home() / ".claude" / "skills" / "music-copyright-check" / "check_music.py"
 
@@ -271,7 +271,9 @@ class Engine:
             self.llm_budget.take(now)
             self.llm_calls += 1
             used_llm = True
-            prompt = J.build_prompt(cfg["source"]["streamer"], cfg["source"]["stream_title"], w0, w1, sig, lines, chat)
+            frames = self.window_frames(w0, w1, loud) if cfg["judge"].get("frames") else []
+            prompt = J.build_prompt(cfg["source"]["streamer"], cfg["source"]["stream_title"], w0, w1, sig, lines, chat,
+                                    frames)
             txt = J.call_llm(cfg["judge"]["cmd"], prompt, cfg["judge"]["timeout_s"], str(self.data))
             if txt:
                 verdict = J.parse_reply(txt, w0, w1, cfg["clips"]["min_len"], cfg["clips"]["max_len"])
@@ -286,6 +288,9 @@ class Engine:
         self.ev("judged", f"score {verdict['score']:.0f} [{verdict['start']:.0f}-{verdict['end']:.0f}] {verdict['reason']}",
                 {"score": verdict["score"], "start": verdict["start"], "end": verdict["end"], "title": verdict["title"],
                  "llm": used_llm and not verdict.get("fallback"), "trigger": pk.kind})
+        if not verdict.get("safe", True):
+            self.ev("info", f"rejected as unsafe for Shorts: {verdict.get('on_screen', '')}")
+            return
         if verdict["score"] < cfg["judge"]["min_score"]:
             return
         if overlaps_any(verdict["start"], verdict["end"], self.cut_ranges, pad=-8):
@@ -298,6 +303,40 @@ class Engine:
         self.cut_ranges.append((verdict["start"], verdict["end"]))
         self.render_q.put({"c": c, "v": verdict, "words": self.transcript(verdict["start"], verdict["end"]),
                            "kw": kw})
+
+    def window_frames(self, w0: float, w1: float, loud: list) -> list[tuple[float, str]]:
+        """A few 640px frames across the window (+ the loudest second) for the vision judge."""
+        n = int(self.cfg["judge"].get("frames", 5))
+        ts = [w0 + (w1 - w0) * (i + 0.5) / max(1, n - 1) for i in range(max(1, n - 1))]
+        if loud:
+            ts.append(float(max(loud)[1]))
+        out_dir = self.data / "llm_frames"
+        out_dir.mkdir(exist_ok=True)
+        frames = []
+        for t in sorted(ts):
+            seg = self.ingest.index.covering(t, t + 0.1)
+            if not seg:
+                continue
+            p, a, _ = seg[0]
+            name = f"f_{int(t):06d}.jpg"
+            r = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{max(0.0, t - a):.2f}",
+                                "-i", p, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", str(out_dir / name)],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=BELOW_NORMAL, timeout=60)
+            if r.returncode == 0 and (out_dir / name).exists():
+                frames.append((t, f"llm_frames/{name}"))
+        return frames
+
+    def fix_loudness(self, path: Path, lufs: float | None) -> float | None:
+        """Single-pass loudnorm can land 2-3 LU off on short dynamic clips: correct with a gain pass."""
+        target = self.cfg["render"]["loudness_lufs"]
+        if lufs is None or abs(lufs - target) <= 1.0:
+            return lufs
+        tmp = path.with_name("clip_gain.mp4")
+        run_ff([FFMPEG, "-hide_banner", "-y", "-i", str(path), "-c:v", "copy", "-af",
+                f"volume={target - lufs:.2f}dB,alimiter=limit=0.85:level=false", "-c:a", "aac", "-b:a", "160k",
+                "-movflags", "+faststart", str(tmp)])
+        os.replace(tmp, path)
+        return measure_loudness(path)
 
     # ------------------------------------------------------------------ rendering
     def ensure_layout(self) -> None:
@@ -364,7 +403,7 @@ class Engine:
             if locked:
                 Path(self.cfg["paths"]["render_lock"]).unlink(missing_ok=True)
         self.last_render_s = time.time() - st
-        lufs = measure_loudness(r["path"])
+        lufs = self.fix_loudness(r["path"], measure_loudness(r["path"]))
         dst = self.out.clip_dir(cid)
         shutil.copy(r["path"], dst / "clip.mp4")
         shutil.copy(cover, dst / "cover.jpg")

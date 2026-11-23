@@ -54,7 +54,8 @@ asr:
 
 judge:
   enabled: true
-  cmd: ["claude", "-p", "--model", "haiku", "--setting-sources", "", "--strict-mcp-config", "--tools", "", "--no-session-persistence"]
+  cmd: ["claude", "-p", "--model", "haiku", "--setting-sources", "", "--strict-mcp-config", "--tools", "Read", "--allowedTools", "Read", "--no-session-persistence"]
+  frames: 5                   # frames of the window the judge looks at (vision); 0 = text only
   timeout_s: 120
   max_calls_per_hour: 40
   max_calls_per_stream: 300

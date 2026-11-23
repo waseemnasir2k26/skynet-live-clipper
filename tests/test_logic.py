@@ -106,3 +106,17 @@ def test_translit_readable():
     assert to_roman("भाई क्या कर रहा है") == "bhai kya kar raha hai"
     assert to_roman("जल्दी भागो") == "jaldi bhago"
     assert to_roman("समझता") == "samajhta"
+
+
+def test_judge_unsafe_flag():
+    v = parse_reply('{"score": 70, "start": 0, "end": 30, "title": "t", "caption": "c", "hashtags": [], "safe": false}',
+                    0, 60, 20, 55)
+    assert v["safe"] is False
+    v = parse_reply('{"score": 70, "start": 0, "end": 30, "title": "t", "caption": "c", "hashtags": []}', 0, 60, 20, 55)
+    assert v["safe"] is True
+
+
+def test_caption_censor():
+    from skynet_clipper.render import clean_word
+    assert clean_word("bhai") == "BHAI"
+    assert clean_word("madarchod").startswith("M*")
