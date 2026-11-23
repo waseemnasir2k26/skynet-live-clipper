@@ -27,6 +27,7 @@ def main() -> int:
     ap.add_argument("--profile", choices=["full", "light"], default=None, help="light = VPS / no GPU profile")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
+    cfg["_config_path"] = a.config
     if a.live:
         cfg["source"].update(mode="live", url=a.live)
     if a.file:

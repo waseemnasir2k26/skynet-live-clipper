@@ -41,10 +41,21 @@ def ts(t: float) -> str:
     return f"{int(h)}:{int(m):02d}:{s:05.2f}"
 
 
+PROFANITY = re.compile(r"(chod|chut|madar|bhosd|bosd|gaand|gand(u|oo)|lund|lauda|loda|randi|bsdk|harami|"
+                       r"kamina|fuck|shit|bitch|^mc$|^bc$|bahanch|behanch|bahench|behench|bahansh|behansh)", re.I)
+
+
+def censor(w: str) -> str:
+    """Brand-safe captions: keep the first letter, star the rest of a slur / gaali."""
+    if PROFANITY.search(w):
+        return w[0] + "*" * max(2, len(w) - 1)
+    return w
+
+
 def clean_word(w: str) -> str:
     w = re.sub(r"[\"“”‘’`,;:()\[\]{}\\]", "", w)
     w = w.replace("।", "").strip()
-    return w.upper()
+    return censor(w).upper()
 
 
 def chunk_words(words: list[Word], max_words: int = 3, max_chars: int = 16, gap: float = 0.5) -> list[list[Word]]:

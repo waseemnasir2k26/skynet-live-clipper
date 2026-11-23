@@ -58,7 +58,7 @@ judge:
   timeout_s: 120
   max_calls_per_hour: 40
   max_calls_per_stream: 300
-  min_score: 58               # below this the candidate is not cut
+  min_score: 60               # below this the candidate is not cut
   fallback_min_signal: 3.4    # deterministic score path when LLM unavailable
 
 clips:

@@ -440,6 +440,32 @@ class Engine:
                                             "detected_upto_s": self.det_t, "asr_upto_s": round(self.asr_t, 1),
                                             "ingest_restarts": self.ingest.restarts, "updated": now_iso()})
 
+    def hot_reload(self) -> None:
+        """Re-read tunables from config.yaml every minute so thresholds can be tuned without a restart."""
+        path = self.cfg.get("_config_path")
+        if not path:
+            return
+        try:
+            import yaml
+            new = yaml.safe_load(open(path, encoding="utf-8"))
+        except Exception as e:
+            log(f"hot reload skipped: {e}")
+            return
+        changed = []
+        for sec, keys in (("judge", ("min_score", "max_calls_per_hour")), ("clips", ("watermark", "max_per_hour")),
+                          ("detect", ("combined_trigger", "quiet_sample_every_s", "chat_lag_s"))):
+            for k in keys:
+                v = new.get(sec, {}).get(k)
+                if v is not None and v != self.cfg[sec].get(k):
+                    self.cfg[sec][k] = v
+                    changed.append(f"{sec}.{k}={v}")
+        if changed:
+            self.spike.threshold = self.cfg["detect"]["combined_trigger"]
+            self.llm_budget.per_hour = self.cfg["judge"]["max_calls_per_hour"]
+            if not self.light:
+                self.clip_budget.per_hour = self.cfg["clips"]["max_per_hour"]
+            self.ev("info", "config hot-reloaded: " + ", ".join(changed))
+
     def still_live(self) -> bool:
         try:
             p = subprocess.run([YTDLP, "--no-warnings", "--print", "live_status", self.cfg["source"]["url"]],
@@ -533,6 +559,7 @@ class Engine:
                         if n:
                             log(f"pruned {n} old segments")
                     self.check_light_mode()
+                    self.hot_reload()
                     cmds, self.cmd_offset = self.out.read_commands(self.cmd_offset)
                     for cmd in cmds:
                         if cmd.get("cmd") == "watch" and cmd.get("url"):
