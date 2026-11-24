@@ -5,7 +5,7 @@ An AI system that watches a live stream, finds the moments worth a Short, and cu
 Built by [SkynetLabs](https://www.skynetlabsai.com). Free, MIT licensed.
 
 **Free PDF guide:** [`docs/Live-Stream-Clipping-Starter-Guide.pdf`](docs/Live-Stream-Clipping-Starter-Guide.pdf) (how stream clipping works, the four signals, layout and caption rules, a 7-day starter plan).
-**Playbook:** {{ETSY_URL}}
+**Playbook:** https://www.etsy.com/listing/4624484141
 
 ![Live Watch dashboard](docs/screenshots/dashboard-live.png)
 
