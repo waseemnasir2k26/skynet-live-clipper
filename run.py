@@ -62,6 +62,7 @@ def main() -> int:
         cfg["asr"].update(model=lm["asr_model"], device=lm["asr_device"], compute_type="int8", beam_size=1)
         cfg["render"]["encoder"] = lm["encoder"]
         cfg["clips"]["max_per_hour"] = lm["max_per_hour"]
+    log("SkynetLabs Clipping System | AI that watches live streams and clips the best moments | www.skynetlabsai.com")
     be_polite()
     os.makedirs(cfg["paths"]["data_root"], exist_ok=True)
     (Path(cfg["paths"]["data_root"]) / "engine.pid").write_text(str(os.getpid()))
