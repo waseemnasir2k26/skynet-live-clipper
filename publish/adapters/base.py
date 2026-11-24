@@ -5,15 +5,14 @@ import json, os, shutil, subprocess
 from pathlib import Path
 from .. import paths
 
-CREDIT = "@CarryisLive"
+CREDIT = os.environ.get("CLIPPER_CREDIT", "@StreamerHandle")   # the streamer you credit in every caption
 
 
 def _ffprobe():
     p = shutil.which("ffprobe")
     if p:
         return p
-    alt = Path(r"C:\Users\info\ffmpeg-nvenc\bin\ffprobe.exe")
-    return str(alt) if alt.exists() else None
+    return None
 
 
 def probe(path: Path) -> dict:
@@ -46,8 +45,8 @@ class Adapter:
     max_duration = 60.0
     max_size_mb = 250
     max_caption = 2200
-    script = None          # lane script (under ~/.secrets/youtube) this adapter is wired to
-    credential = None      # file (under ~/.secrets) whose existence = "connected"; contents never read
+    script = None          # lane script (under <CLIPPER_SECRETS>/lanes) this adapter is wired to
+    credential = None      # file (under CLIPPER_SECRETS) whose existence = "connected"; contents never read
 
     # -- config / status --
     def connected(self) -> bool:
@@ -56,7 +55,7 @@ class Adapter:
         return (paths.SECRETS / self.credential).exists()
 
     def lane_script_present(self) -> bool:
-        return bool(self.script) and (paths.SECRETS / "youtube" / self.script).exists()
+        return bool(self.script) and (paths.SECRETS / "lanes" / self.script).exists()
 
     # -- caption --
     def build_caption(self, meta: dict, override: str = "") -> str:

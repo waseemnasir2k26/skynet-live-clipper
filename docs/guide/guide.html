@@ -1,0 +1,1338 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Live Stream Clipping Starter Guide</title>
+    <style>
+      @font-face {
+        font-family: Bricolage;
+        src: url(../../studio/static/fonts/BricolageGrotesque-400.ttf);
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: Bricolage;
+        src: url(../../studio/static/fonts/BricolageGrotesque-700.ttf);
+        font-weight: 700;
+      }
+      @font-face {
+        font-family: Bricolage;
+        src: url(../../studio/static/fonts/BricolageGrotesque-800.ttf);
+        font-weight: 800;
+      }
+      @font-face {
+        font-family: Inter;
+        src: url(../../studio/static/fonts/Inter-400.ttf);
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: Inter;
+        src: url(../../studio/static/fonts/Inter-500.ttf);
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: Inter;
+        src: url(../../studio/static/fonts/Inter-600.ttf);
+        font-weight: 600;
+      }
+      @font-face {
+        font-family: Inter;
+        src: url(../../studio/static/fonts/Inter-700.ttf);
+        font-weight: 700;
+      }
+      @font-face {
+        font-family: Plex;
+        src: url(../../studio/static/fonts/IBMPlexMono-500.ttf);
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: Plex;
+        src: url(../../studio/static/fonts/IBMPlexMono-600.ttf);
+        font-weight: 600;
+      }
+      :root {
+        --ink: #1a1a1a;
+        --ink2: #2a2724;
+        --cream: #f2efe6;
+        --paper: #faf8f2;
+        --rust: #c66b3f;
+        --rust2: #e8895a;
+        --mute: #6f6a60;
+        --line: #ddd7c8;
+        --green: #4f8a5b;
+      }
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #888;
+      }
+      body {
+        font-family: Inter, sans-serif;
+        color: var(--ink);
+        font-size: 10.4pt;
+        line-height: 1.55;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .page {
+        width: 210mm;
+        height: 297mm;
+        position: relative;
+        overflow: hidden;
+        background: var(--paper);
+        page-break-after: always;
+        padding: 20mm 20mm 22mm;
+      }
+      .page:last-child {
+        page-break-after: auto;
+      }
+      .k {
+        font-family: Plex, monospace;
+        font-weight: 600;
+        font-size: 7.6pt;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--rust);
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: Bricolage, sans-serif;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 25pt;
+        line-height: 1.08;
+        font-weight: 800;
+        margin: 3mm 0 5mm;
+      }
+      h3 {
+        font-size: 12.5pt;
+        font-weight: 700;
+        margin: 0 0 1.5mm;
+      }
+      p {
+        margin-bottom: 3mm;
+      }
+      .lead {
+        font-size: 11.8pt;
+        line-height: 1.5;
+        color: #3a362f;
+        margin-bottom: 6mm;
+      }
+      .foot {
+        position: absolute;
+        left: 20mm;
+        right: 20mm;
+        bottom: 9mm;
+        display: flex;
+        justify-content: space-between;
+        font-family: Plex, monospace;
+        font-size: 7pt;
+        letter-spacing: 0.1em;
+        color: var(--mute);
+        border-top: 1px solid var(--line);
+        padding-top: 2.5mm;
+      }
+      .cards {
+        display: grid;
+        gap: 4mm;
+      }
+      .c2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .c3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 3mm;
+        padding: 5mm;
+      }
+      .card.dark {
+        background: var(--ink);
+        color: var(--cream);
+        border-color: var(--ink);
+      }
+      .card .n {
+        font-family: Bricolage;
+        font-weight: 800;
+        font-size: 22pt;
+        color: var(--rust);
+        line-height: 1;
+      }
+      ul {
+        padding-left: 4.5mm;
+        margin-bottom: 3mm;
+      }
+      li {
+        margin-bottom: 1.4mm;
+      }
+      .call {
+        border-left: 1.2mm solid var(--rust);
+        background: #f3ede1;
+        padding: 4mm 5mm;
+        border-radius: 0 2mm 2mm 0;
+        margin: 4mm 0;
+      }
+      .call b {
+        font-family: Bricolage;
+      }
+      .small {
+        font-size: 8.6pt;
+        color: var(--mute);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9.4pt;
+      }
+      th {
+        font-family: Plex, monospace;
+        font-size: 7.2pt;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--rust);
+        text-align: left;
+        padding: 2mm 3mm;
+        border-bottom: 1.5px solid var(--ink);
+      }
+      td {
+        padding: 2.4mm 3mm;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .cover {
+        background: var(--ink);
+        color: var(--cream);
+        padding: 24mm 22mm;
+      }
+      .cover .bar {
+        width: 12mm;
+        height: 3mm;
+        background: var(--rust);
+        margin-bottom: 10mm;
+      }
+      .cover h1 {
+        font-size: 50pt;
+        line-height: 0.98;
+        font-weight: 800;
+        margin: 6mm 0 8mm;
+      }
+      .cover h1 em {
+        font-style: normal;
+        color: var(--rust2);
+      }
+      .cover p {
+        color: #cfc8b8;
+        font-size: 12.5pt;
+        max-width: 130mm;
+      }
+      .cover .meta {
+        position: absolute;
+        left: 22mm;
+        right: 22mm;
+        bottom: 20mm;
+        display: flex;
+        justify-content: space-between;
+        font-family: Plex, monospace;
+        font-size: 8pt;
+        letter-spacing: 0.12em;
+        color: #9d9686;
+        text-transform: uppercase;
+      }
+      .wave {
+        position: absolute;
+        right: -6mm;
+        top: 118mm;
+        width: 120mm;
+        height: 100mm;
+        opacity: 0.95;
+      }
+      .step {
+        display: flex;
+        gap: 4mm;
+        align-items: flex-start;
+        margin-bottom: 3.4mm;
+      }
+      .step .b {
+        flex: 0 0 9mm;
+        height: 9mm;
+        border-radius: 50%;
+        background: var(--rust);
+        color: #fff;
+        font-family: Bricolage;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11pt;
+      }
+      .step p {
+        margin: 0;
+      }
+      .days {
+        display: grid;
+        gap: 2.6mm;
+      }
+      .day {
+        display: grid;
+        grid-template-columns: 20mm 1fr;
+        gap: 4mm;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 2.5mm;
+        padding: 3.2mm 4mm;
+        align-items: start;
+      }
+      .day .d {
+        font-family: Bricolage;
+        font-weight: 800;
+        color: var(--rust);
+        font-size: 12pt;
+        line-height: 1.1;
+      }
+      .day .d span {
+        display: block;
+        font-family: Plex;
+        font-size: 6.6pt;
+        letter-spacing: 0.14em;
+        color: var(--mute);
+        font-weight: 600;
+      }
+      .day p {
+        margin: 0;
+        font-size: 9.4pt;
+        line-height: 1.45;
+      }
+      .day b {
+        font-family: Bricolage;
+        font-size: 10.4pt;
+      }
+      .phone {
+        width: 50mm;
+        height: 88.9mm;
+        border: 1.5mm solid var(--ink);
+        border-radius: 5mm;
+        position: relative;
+        background: #241f1b;
+        overflow: hidden;
+        margin: 0 auto;
+      }
+      .zone {
+        position: absolute;
+        left: 0;
+        right: 0;
+        font-family: Plex;
+        font-size: 6pt;
+        letter-spacing: 0.1em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #fff;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .tag {
+        display: inline-block;
+        font-family: Plex;
+        font-weight: 600;
+        font-size: 7pt;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0.6mm 2mm;
+        border-radius: 1mm;
+        background: var(--ink);
+        color: var(--cream);
+      }
+      .good {
+        color: var(--green);
+        font-weight: 700;
+      }
+      .bad {
+        color: #b5473a;
+        font-weight: 700;
+      }
+      .cta {
+        background: var(--ink);
+        color: var(--cream);
+        border-radius: 4mm;
+        padding: 7mm 8mm;
+      }
+      .cta h3 {
+        color: #fff;
+        font-size: 15pt;
+      }
+      .cta p {
+        color: #cfc8b8;
+      }
+      a {
+        color: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 1 COVER -->
+    <section class="page cover">
+      <div class="bar"></div>
+      <div class="k" style="color: var(--rust2)">
+        Free starter guide &middot; SkynetLabs
+      </div>
+      <h1>Live Stream<br />Clipping<br /><em>Starter Guide</em></h1>
+      <p>
+        How to turn hours of live stream into a few clips people actually watch:
+        what to look for, how to cut it for a phone, and a 7-day plan to ship
+        your first batch.
+      </p>
+      <svg class="wave" viewBox="0 0 400 340" aria-hidden="true">
+        <g fill="#c66b3f">
+          <rect x="10" y="150" width="9" height="40" rx="3" opacity=".35" />
+          <rect x="30" y="135" width="9" height="70" rx="3" opacity=".4" />
+          <rect x="50" y="120" width="9" height="100" rx="3" opacity=".5" />
+          <rect x="70" y="100" width="9" height="140" rx="3" opacity=".6" />
+          <rect x="90" y="75" width="9" height="190" rx="3" opacity=".7" />
+          <rect x="110" y="40" width="9" height="260" rx="3" opacity=".85" />
+          <rect x="130" y="10" width="9" height="320" rx="3" />
+          <rect x="150" y="55" width="9" height="230" rx="3" opacity=".9" />
+          <rect x="170" y="95" width="9" height="150" rx="3" opacity=".75" />
+          <rect x="190" y="120" width="9" height="100" rx="3" opacity=".6" />
+          <rect x="210" y="135" width="9" height="70" rx="3" opacity=".5" />
+          <rect x="230" y="145" width="9" height="50" rx="3" opacity=".4" />
+          <rect x="250" y="155" width="9" height="30" rx="3" opacity=".3" />
+          <rect x="270" y="150" width="9" height="40" rx="3" opacity=".25" />
+        </g>
+      </svg>
+      <div class="meta">
+        <span>www.skynetlabsai.com</span
+        ><span>github.com/waseemnasir2k26/skynet-live-clipper</span>
+      </div>
+    </section>
+
+    <!-- 2 INTRO -->
+    <section class="page">
+      <div class="k">Start here</div>
+      <h2>What this guide is, and who it is for</h2>
+      <p class="lead">
+        A live stream is three to ten hours of mostly nothing, with a handful of
+        moments that are genuinely worth sharing. Clipping is the craft of
+        finding those moments fast and packaging each one so a stranger
+        scrolling a phone stops and watches.
+      </p>
+      <div class="cards c2" style="margin-bottom: 5mm">
+        <div class="card">
+          <h3>This guide is for you if</h3>
+          <ul>
+            <li>
+              you clip a stream you own, or one whose streamer has said yes
+            </li>
+            <li>you want a repeatable process, not luck</li>
+            <li>you may want to automate part of it</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>You will learn</h3>
+          <ul>
+            <li>how clipping works end to end</li>
+            <li>how to pick moments</li>
+            <li>the 4 signals that point to them</li>
+            <li>layout and caption rules for vertical video</li>
+            <li>permission and copyright basics</li>
+            <li>a 7-day starter plan</li>
+          </ul>
+        </div>
+      </div>
+      <h3 style="margin-top: 2mm">Contents</h3>
+      <table>
+        <tr>
+          <td style="width: 12mm" class="k">03</td>
+          <td>How stream clipping works</td>
+        </tr>
+        <tr>
+          <td class="k">04</td>
+          <td>Picking moments worth a clip</td>
+        </tr>
+        <tr>
+          <td class="k">05</td>
+          <td>The 4 signals</td>
+        </tr>
+        <tr>
+          <td class="k">06</td>
+          <td>Vertical layout rules</td>
+        </tr>
+        <tr>
+          <td class="k">07</td>
+          <td>Caption rules</td>
+        </tr>
+        <tr>
+          <td class="k">08</td>
+          <td>Permission and copyright basics</td>
+        </tr>
+        <tr>
+          <td class="k">09</td>
+          <td>Your 7-day starter plan</td>
+        </tr>
+        <tr>
+          <td class="k">10</td>
+          <td>The full system: open-source repo and the Playbook</td>
+        </tr>
+      </table>
+      <div class="call">
+        <b>An honest note.</b> Everything in this guide works by hand. The
+        open-source system on the last page automates the finding and cutting.
+        It was tested on one recorded 2.5 hour stream replayed in real time, and
+        its publishing is dry run only. We tell you exactly what is and is not
+        proven.
+      </div>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>02</span>
+      </div>
+    </section>
+
+    <!-- 3 HOW IT WORKS -->
+    <section class="page">
+      <div class="k">Chapter 1</div>
+      <h2>How stream clipping works</h2>
+      <p class="lead">
+        Every clipping workflow, manual or automated, is the same five steps.
+        The skill is in steps 2 and 3.
+      </p>
+      <svg viewBox="0 0 520 96" width="100%" style="margin: 1mm 0 6mm">
+        <g
+          font-family="Plex,monospace"
+          font-size="9"
+          font-weight="600"
+          text-anchor="middle"
+        >
+          <g fill="#1a1a1a">
+            <rect x="0" y="18" width="92" height="56" rx="8" />
+            <rect x="107" y="18" width="92" height="56" rx="8" />
+            <rect x="214" y="18" width="92" height="56" rx="8" />
+            <rect x="321" y="18" width="92" height="56" rx="8" />
+          </g>
+          <rect x="428" y="18" width="92" height="56" rx="8" fill="#c66b3f" />
+          <g fill="#f2efe6">
+            <text x="46" y="42">CAPTURE</text>
+            <text x="46" y="56" font-size="7.5" opacity=".7">
+              stream + chat
+            </text>
+            <text x="153" y="42">DETECT</text>
+            <text x="153" y="56" font-size="7.5" opacity=".7">spikes</text>
+            <text x="260" y="42">JUDGE</text>
+            <text x="260" y="56" font-size="7.5" opacity=".7">
+              worth a clip?
+            </text>
+            <text x="367" y="42">CUT</text>
+            <text x="367" y="56" font-size="7.5" opacity=".7">
+              9:16 + captions
+            </text>
+            <text x="474" y="42">REVIEW</text>
+            <text x="474" y="56" font-size="7.5" opacity=".9">
+              then publish
+            </text>
+          </g>
+          <g stroke="#6f6a60" stroke-width="1.4" fill="none">
+            <path d="M93 46h13" />
+            <path d="M200 46h13" />
+            <path d="M307 46h13" />
+            <path d="M414 46h13" />
+          </g>
+        </g>
+      </svg>
+      <div class="step">
+        <div class="b">1</div>
+        <div>
+          <h3>Capture</h3>
+          <p>
+            Record the stream and its chat with a timestamp. You need the video,
+            the audio and the chat log, all on the same clock. Without chat you
+            lose your best signal.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="b">2</div>
+        <div>
+          <h3>Detect</h3>
+          <p>
+            Look for moments where something changed: chat speeds up, the
+            streamer gets louder, the words get urgent. These are candidates,
+            not clips yet.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="b">3</div>
+        <div>
+          <h3>Judge</h3>
+          <p>
+            Decide whether a candidate is a standalone story. Is there a hook, a
+            payoff and enough context for a stranger? This is where most clips
+            die, and they should.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="b">4</div>
+        <div>
+          <h3>Cut</h3>
+          <p>
+            Trim to the story (20 to 55 seconds works well), reframe for a
+            vertical screen, add captions and a hook title, normalise the sound,
+            export a cover image.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="b">5</div>
+        <div>
+          <h3>Review and publish</h3>
+          <p>
+            A human watches every clip before it goes out. Check the first
+            frame, the captions, the music, and that the streamer is credited.
+          </p>
+        </div>
+      </div>
+      <div class="card dark" style="margin-top: 5mm">
+        <div class="k" style="color: var(--rust2)">Speed matters</div>
+        <p style="margin: 1.5mm 0 0; color: #e5dfd0">
+          Moments are worth more the sooner they are posted. In our test replay,
+          the automated path took about 49 seconds on average from the moment
+          happening to a finished clip. By hand, budget 10 to 20 minutes per
+          clip.
+        </p>
+      </div>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>03</span>
+      </div>
+    </section>
+
+    <!-- 4 PICKING MOMENTS -->
+    <section class="page">
+      <div class="k">Chapter 2</div>
+      <h2>Picking moments worth a clip</h2>
+      <p class="lead">
+        A good clip is a tiny story: a hook in the first two seconds, a build, a
+        payoff, and a clean ending. If a viewer needs the other three hours to
+        understand it, it is not a clip.
+      </p>
+      <div class="cards c2">
+        <div class="card">
+          <div class="n">1</div>
+          <h3 style="margin-top: 1mm">The hook</h3>
+          <p class="small" style="margin: 0">
+            Something happens or is said in the first two seconds that makes a
+            stranger stay: a shout, a shocked face, a bold line, a sudden fail.
+            Start right before it, not 20 seconds before.
+          </p>
+        </div>
+        <div class="card">
+          <div class="n">2</div>
+          <h3 style="margin-top: 1mm">The payoff</h3>
+          <p class="small" style="margin: 0">
+            The reaction, the punchline, the clutch landing, the twist. End
+            shortly after it. Never cut mid-sentence.
+          </p>
+        </div>
+      </div>
+      <h3 style="margin: 4mm 0 1mm">Moment types that tend to work</h3>
+      <table>
+        <tr>
+          <th style="width: 38mm">Type</th>
+          <th>Why it works</th>
+        </tr>
+        <tr>
+          <td><b>Big reaction</b></td>
+          <td>
+            Shock, rage, laughter, panic. Faces and voices carry emotion without
+            context.
+          </td>
+        </tr>
+        <tr>
+          <td><b>Fail or comeback</b></td>
+          <td>A clear before and after inside 30 seconds.</td>
+        </tr>
+        <tr>
+          <td><b>Chat interaction</b></td>
+          <td>
+            The streamer reads or reacts to chat. Viewers feel part of it.
+          </td>
+        </tr>
+        <tr>
+          <td><b>Roast or hot take</b></td>
+          <td>A short, quotable opinion with a clear target.</td>
+        </tr>
+        <tr>
+          <td><b>Clutch or skill</b></td>
+          <td>
+            A visible win against the odds. Needs the screen, not just the face.
+          </td>
+        </tr>
+        <tr>
+          <td><b>Punchline story</b></td>
+          <td>A short anecdote that lands. Check the audio is clear.</td>
+        </tr>
+      </table>
+      <h3 style="margin: 3mm 0 2mm">Quick filter before you cut</h3>
+      <div class="cards c2">
+        <div class="card">
+          <div class="good">Cut it when</div>
+          <ul style="margin: 2mm 0 0">
+            <li>it makes sense with zero context</li>
+            <li>the first 2 seconds are interesting</li>
+            <li>there is a visible or audible payoff</li>
+            <li>it fits in 20 to 55 seconds</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="bad">Skip it when</div>
+          <ul style="margin: 2mm 0 0">
+            <li>it is menus, loading or silence</li>
+            <li>the funny part needs an in-joke</li>
+            <li>loud copyrighted music is underneath</li>
+            <li>the content is unsafe for the platform</li>
+          </ul>
+        </div>
+      </div>
+      <div class="call" style="margin: 3mm 0 0"><b>Rule of thumb.</b> Five strong clips beat twenty weak ones. In our test of 14 automatic clips from one stream, about 4 were good, 5 fine and 5 weak, so a human review step is not optional.</div>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>04</span>
+      </div>
+    </section>
+
+    <!-- 5 SIGNALS -->
+    <section class="page">
+      <div class="k">Chapter 3</div>
+      <h2>The 4 signals that point to a moment</h2>
+      <p class="lead">
+        You do not have to watch every minute. Four signals, checked together,
+        tell you where to look.
+      </p>
+      <svg viewBox="0 0 520 150" width="100%" style="margin-bottom: 2mm">
+        <rect width="520" height="150" rx="10" fill="#1a1a1a" />
+        <g stroke="#3a3530" stroke-width="1">
+          <path d="M20 40H500M20 80H500M20 120H500" />
+        </g>
+        <path
+          d="M20 118 C60 116 80 119 110 114 S150 60 175 22 S205 110 250 116 S300 112 330 104 S360 46 385 30 S420 108 470 114 L500 116"
+          fill="none"
+          stroke="#e8895a"
+          stroke-width="2.4"
+        />
+        <path
+          d="M20 124 C70 120 100 122 130 118 S160 84 180 62 S215 116 260 121 S320 118 345 110 S370 80 390 66 S430 118 500 122"
+          fill="none"
+          stroke="#f2efe6"
+          stroke-width="1.6"
+          opacity=".85"
+        />
+        <g fill="none" stroke="#7fc08b" stroke-width="1.6">
+          <circle cx="175" cy="20" r="6" />
+          <circle cx="385" cy="28" r="6" />
+        </g>
+        <g
+          font-family="Plex,monospace"
+          font-size="8"
+          fill="#cfc8b8"
+          font-weight="600"
+        >
+          <text x="30" y="142">CHAT SPEED</text>
+          <text x="116" y="142" fill="#f2efe6">AUDIO LOUDNESS</text>
+          <text x="226" y="142" fill="#7fc08b">O = MOMENT</text>
+          <text x="498" y="142" text-anchor="end" opacity=".55">ILLUSTRATION, NOT REAL DATA</text>
+        </g>
+        <rect x="20" y="136" width="5" height="5" fill="#e8895a" />
+        <rect x="106" y="136" width="5" height="5" fill="#f2efe6" />
+      </svg>
+      <div class="cards c2" style="margin-top: 4mm">
+        <div class="card">
+          <div class="k">Signal 1</div>
+          <h3>Chat velocity</h3>
+          <p class="small" style="margin: 0">
+            Messages per second against the last 10 minutes of chat. A sudden
+            jump means viewers just saw something. Chat reacts about 10 to 15
+            seconds late, so look back from the peak.
+          </p>
+        </div>
+        <div class="card">
+          <div class="k">Signal 2</div>
+          <h3>Hype words</h3>
+          <p class="small" style="margin: 0">
+            Laughing emojis, "lol", "W", "L", "no way", channel emotes,
+            superchats. Spam of the same short word is a stronger sign than long
+            messages.
+          </p>
+        </div>
+        <div class="card">
+          <div class="k">Signal 3</div>
+          <h3>Audio energy</h3>
+          <p class="small" style="margin: 0">
+            The loudest quarter second of each second, compared with the
+            streamer's own baseline. Shouting, laughing and crashes stand out
+            even when the words are unclear.
+          </p>
+        </div>
+        <div class="card">
+          <div class="k">Signal 4</div>
+          <h3>Speech</h3>
+          <p class="small" style="margin: 0">
+            A transcript with word timings shows what was said, powers captions,
+            and lets you cut exactly at a sentence boundary.
+          </p>
+        </div>
+      </div>
+      <h3 style="margin: 6mm 0 2mm">How to combine them</h3>
+      <ul>
+        <li>
+          <b>Compare to a rolling baseline, not a fixed number.</b> A busy chat
+          at the start of a stream is not a spike. A jump above the last 10
+          minutes is.
+        </li>
+        <li>
+          <b>Reward agreement.</b> Chat and audio rising together is worth far
+          more than either alone.
+        </li>
+        <li>
+          <b>Merge peaks that are close.</b> Two spikes under 45 seconds apart
+          are usually one moment.
+        </li>
+        <li>
+          <b>Sample quiet stretches too.</b> If nothing fires for five minutes,
+          still look at the best window in that span.
+        </li>
+        <li>
+          <b>The signals find candidates; a judge decides.</b> The final call is
+          a human (or an AI judge that also sees the screen) asking: is this a
+          story?
+        </li>
+      </ul>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>05</span>
+      </div>
+    </section>
+
+    <!-- 6 LAYOUT -->
+    <section class="page">
+      <div class="k">Chapter 4</div>
+      <h2>Vertical layout rules</h2>
+      <p class="lead">
+        Shorts, Reels and TikTok are 1080 x 1920 pixels (9:16). A 16:9 stream
+        shrinks to a thin strip if you only scale it, so reframe it.
+      </p>
+      <div
+        style="
+          display: grid;
+          grid-template-columns: 62mm 1fr;
+          gap: 8mm;
+          align-items: start;
+        "
+      >
+        <div>
+          <div class="phone">
+            <div
+              class="zone"
+              style="top: 0; height: 7%; background: #4a2f22; font-size: 5pt"
+            >
+              Platform header
+            </div>
+            <div class="zone" style="top: 7%; height: 36%; background: #7a4a33">
+              Facecam<br />zoomed
+            </div>
+            <div
+              style="
+                position: absolute;
+                left: 0;
+                right: 0;
+                top: 43%;
+                height: 1.2mm;
+                background: #f2c94c;
+              "
+            ></div>
+            <div
+              class="zone"
+              style="top: 43.6%; height: 30%; background: #3b4a56; align-items: flex-start; padding-top: 3mm"
+            >
+              Gameplay /<br />screen
+            </div>
+            <div
+              class="zone"
+              style="
+                top: 61%;
+                height: 9%;
+                background: transparent;
+                color: #f2c94c;
+                font-size: 8pt;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+              "
+            >
+              CAPTION WORDS
+            </div>
+            <div
+              class="zone"
+              style="
+                top: 73.6%;
+                height: 26.4%;
+                background: rgba(0, 0, 0, 0.55);
+                font-size: 5pt;
+              "
+            >
+              Platform UI:<br />caption, buttons<br />keep clear
+            </div>
+          </div>
+          <p class="small" style="text-align: center; margin-top: 3mm">
+            Stacked layout, proportions approximate
+          </p>
+        </div>
+        <div>
+          <h3>The rules</h3>
+          <ul>
+            <li>
+              <b>Face on top, action below.</b> Crop and zoom the webcam to fill
+              the top 35 to 40 percent. Put the gameplay or screen below it. A
+              thin divider line helps the eye.
+            </li>
+            <li>
+              <b>Keep the important part out of the danger zones.</b> The top ~8
+              percent and the bottom ~20 to 25 percent are covered by platform
+              buttons and descriptions. Right edge too. These zones change, so
+              test on a real phone.
+            </li>
+            <li>
+              <b>Captions in the middle band,</b> between the two panels or just
+              under the action, never in the bottom strip.
+            </li>
+            <li>
+              <b>Hook title for the first 2 to 3 seconds.</b> Three lines max,
+              big, high contrast, gone before the payoff.
+            </li>
+            <li>
+              <b>First frame is the cover.</b> On YouTube Shorts frame zero
+              often is the thumbnail, so make it readable.
+            </li>
+            <li>
+              <b>Length 20 to 55 seconds</b> is a good range; shorter if the
+              story is short.
+            </li>
+            <li>
+              <b>Sound at about -14 LUFS.</b> Normalise it so clips do not jump
+              in volume.
+            </li>
+            <li><b>Credit the streamer</b> on screen and in the caption.</li>
+          </ul>
+          <div class="call" style="margin-top: 2mm">
+            <b>No facecam?</b> Use a centred crop of the action with a blurred,
+            scaled copy of the frame behind it. Never leave black bars.
+          </div>
+        </div>
+      </div>
+      <table style="margin-top: 5mm">
+        <tr>
+          <th>Spec</th>
+          <th>Value</th>
+          <th>Spec</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>Resolution</td>
+          <td>1080 x 1920</td>
+          <td>Frame rate</td>
+          <td>30 fps (match source)</td>
+        </tr>
+        <tr>
+          <td>Codec</td>
+          <td>H.264 + AAC</td>
+          <td>Loudness</td>
+          <td>about -14 LUFS</td>
+        </tr>
+      </table>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>06</span>
+      </div>
+    </section>
+
+    <!-- 7 CAPTIONS -->
+    <section class="page">
+      <div class="k">Chapter 5</div>
+      <h2>Caption rules</h2>
+      <p class="lead">
+        Most people watch with the sound low or off. Captions are not
+        decoration, they are how the clip is understood. There are two kinds:
+        burned-in words on the video, and the post caption underneath.
+      </p>
+      <div class="cards c2">
+        <div class="card">
+          <h3>On-video captions</h3>
+          <ul style="margin: 0">
+            <li>
+              <b>2 to 3 words at a time.</b> Short chunks match speech and are
+              easy to read.
+            </li>
+            <li>
+              <b>Highlight the active word</b> (a colour change) so the eye
+              follows the voice.
+            </li>
+            <li>
+              <b>Time to the word,</b> not the sentence. Use word timestamps
+              from speech-to-text.
+            </li>
+            <li>
+              <b>No overlapping chunks.</b> One caption on screen at a time.
+            </li>
+            <li>
+              <b>Big, bold, high contrast,</b> with a dark outline or shadow.
+            </li>
+            <li><b>Middle band only</b> (see layout rules).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Post captions</h3>
+          <ul style="margin: 0">
+            <li>
+              <b>First line is the hook.</b> Many platforms cut after one or two
+              lines.
+            </li>
+            <li><b>One sentence of context,</b> then the credit.</li>
+            <li><b>3 to 5 relevant hashtags,</b> not 30.</li>
+            <li><b>Credit the streamer</b> every time.</li>
+            <li>
+              <b>One call to action</b> at most: watch the full stream, or
+              follow.
+            </li>
+          </ul>
+        </div>
+      </div>
+      <h3 style="margin: 6mm 0 2mm">Fix speech-to-text mistakes</h3>
+      <p>
+        Automatic transcripts of a loud game mix are never perfect. Names, slang
+        and game terms are the usual errors. Always:
+      </p>
+      <ul>
+        <li>read the captions of every clip before it goes out,</li>
+        <li>
+          keep a small list of the streamer's names and catchphrases and correct
+          them,
+        </li>
+        <li>star or soften strong language if the platform limits it,</li>
+        <li>set the transcription language to the stream's language.</li>
+      </ul>
+      <h3 style="margin: 5mm 0 2mm">Hook title examples</h3>
+      <div class="cards c3">
+        <div class="card dark" style="text-align: center">
+          <div
+            style="
+              font-family: Bricolage;
+              font-weight: 800;
+              font-size: 13pt;
+              line-height: 1.1;
+              color: #f2c94c;
+            "
+          >
+            THE PLAN<br />NOBODY<br />SAW COMING
+          </div>
+        </div>
+        <div class="card dark" style="text-align: center">
+          <div
+            style="
+              font-family: Bricolage;
+              font-weight: 800;
+              font-size: 13pt;
+              line-height: 1.1;
+              color: #f2c94c;
+            "
+          >
+            RAGE QUIT,<br />THEN INSTANT<br />COMEBACK
+          </div>
+        </div>
+        <div class="card dark" style="text-align: center">
+          <div
+            style="
+              font-family: Bricolage;
+              font-weight: 800;
+              font-size: 13pt;
+              line-height: 1.1;
+              color: #f2c94c;
+            "
+          >
+            CHAT CALLED<br />THE ENDING
+          </div>
+        </div>
+      </div>
+      <p class="small" style="margin-top: 2mm">
+        Six words or fewer. Say what happens, create a question, never lie about
+        the content.
+      </p>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>07</span>
+      </div>
+    </section>
+
+    <!-- 8 PERMISSION -->
+    <section class="page">
+      <div class="k">Chapter 6</div>
+      <h2>Permission and copyright basics</h2>
+      <p class="lead">
+        This is the most important page. Clipping is easy. Clipping safely means
+        you have the right to do it.
+      </p>
+      <div class="call" style="margin-top: 0">
+        <b>The rule: only clip streams you have permission to clip.</b> Credit
+        does not replace permission. A streamer owns their stream, and the
+        platform and game publisher may have rights too.
+      </div>
+      <h3 style="margin: 5mm 0 2mm">What to do</h3>
+      <div class="step">
+        <div class="b">1</div>
+        <p>
+          <b>Ask, in writing.</b> A short message is enough: you will clip their
+          streams, credit them on every post, and remove anything they ask you
+          to remove. Keep the reply.
+        </p>
+      </div>
+      <div class="step">
+        <div class="b">2</div>
+        <p>
+          <b>Agree the terms.</b> Which platforms, whether you may monetise,
+          whether they want to approve clips first, and how to take a clip down.
+        </p>
+      </div>
+      <div class="step">
+        <div class="b">3</div>
+        <p>
+          <b>Credit every time.</b> Name or handle on screen and in the caption,
+          plus a link to the full stream.
+        </p>
+      </div>
+      <div class="step">
+        <div class="b">4</div>
+        <p>
+          <b>Check the music.</b> Streams often play commercial songs. Even with
+          the streamer's yes, the music label can claim or mute your clip. If a
+          clip has a track under it, skip it or strip the music.
+        </p>
+      </div>
+      <div class="step">
+        <div class="b">5</div>
+        <p>
+          <b>Respect platform rules.</b> Each platform has its own policy on
+          reused content, sexual content, violence and minors. Review every
+          clip.
+        </p>
+      </div>
+      <h3 style="margin: 5mm 0 2mm">Quick risk table</h3>
+      <table>
+        <tr>
+          <th style="width: 50mm">Situation</th>
+          <th>Risk</th>
+          <th>Action</th>
+        </tr>
+        <tr>
+          <td>Your own stream</td>
+          <td><span class="good">Low</span></td>
+          <td>Check music and platform rules</td>
+        </tr>
+        <tr>
+          <td>Streamer said yes in writing</td>
+          <td><span class="good">Low to medium</span></td>
+          <td>Credit, keep proof, check music</td>
+        </tr>
+        <tr>
+          <td>No contact, credit only</td>
+          <td><span class="bad">High</span></td>
+          <td>Do not post. Ask first</td>
+        </tr>
+        <tr>
+          <td>Clip contains a commercial song</td>
+          <td><span class="bad">High</span></td>
+          <td>Skip, or remove the music</td>
+        </tr>
+        <tr>
+          <td>Sexual or graphic scene</td>
+          <td><span class="bad">High</span></td>
+          <td>Reject the clip</td>
+        </tr>
+      </table>
+      <p class="small" style="margin-top: 4mm">
+        This page is general information, not legal advice. Rules differ by
+        country and platform. When in doubt, ask the rights holder.
+      </p>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>08</span>
+      </div>
+    </section>
+
+    <!-- 9 7-DAY PLAN -->
+    <section class="page">
+      <div class="k">Your plan</div>
+      <h2>The 7-day starter plan</h2>
+      <p class="lead" style="margin-bottom: 4mm">
+        Aim: permission secured, a repeatable routine, and 5 to 7 reviewed clips
+        published by day 7. About 1 to 2 hours a day.
+      </p>
+      <div class="days">
+        <div class="day">
+          <div class="d">DAY 1<span>PERMISSION</span></div>
+          <p>
+            <b>Pick one streamer and get a yes.</b> Choose a stream you like and
+            understand. Send the permission message from page 8. Pick the
+            platform you will post on first (one is enough).
+          </p>
+        </div>
+        <div class="day">
+          <div class="d">DAY 2<span>TOOLS</span></div>
+          <p>
+            <b>Set up your tools.</b> Install ffmpeg and yt-dlp, make a folder
+            structure (captures, clips, finished), and record or download one
+            past stream plus its chat.
+          </p>
+        </div>
+        <div class="day">
+          <div class="d">DAY 3<span>FIND</span></div>
+          <p>
+            <b>Find 10 candidates.</b> Scrub the chat for bursts and the audio
+            for loud peaks. Write down the timestamps. Do not cut yet.
+          </p>
+        </div>
+        <div class="day">
+          <div class="d">DAY 4<span>JUDGE</span></div>
+          <p>
+            <b>Cut the best 5 on paper.</b> For each, find the hook second and
+            the payoff second. Drop any that need context or have music
+            underneath. Keep the 5 strongest.
+          </p>
+        </div>
+        <div class="day">
+          <div class="d">DAY 5<span>CUT</span></div>
+          <p>
+            <b>Make your first 5 vertical clips.</b> Stacked layout, word-timed
+            captions, hook title, normalised sound, cover frame. Follow pages 6
+            and 7.
+          </p>
+        </div>
+        <div class="day">
+          <div class="d">DAY 6<span>REVIEW</span></div>
+          <p>
+            <b>Review like a stranger.</b> Watch each on a phone with sound off,
+            then on. Check first frame, captions, credit, music. Write each post
+            caption and 3 to 5 hashtags.
+          </p>
+        </div>
+        <div class="day">
+          <div class="d">DAY 7<span>PUBLISH</span></div>
+          <p>
+            <b>Publish and learn.</b> Post 1 to 2 clips, spaced a few hours
+            apart. Check views after 24 hours: which hook, length and moment
+            type did best? Use that for week 2.
+          </p>
+        </div>
+      </div>
+      <div class="call">
+        <b>Then automate.</b> Once you can do this by hand, the open-source Live
+        Clipper (next page) automates days 3 to 5 and leaves the review and
+        permission steps to you, where they belong.
+      </div>
+      <div class="foot">
+        <span>LIVE STREAM CLIPPING STARTER GUIDE</span><span>09</span>
+      </div>
+    </section>
+
+    <!-- 10 FULL SYSTEM -->
+    <section class="page">
+      <div class="k">Next step</div>
+      <h2>The full system: the open-source repo</h2>
+      <p class="lead">
+        Everything in this guide, built as software. Free and MIT licensed.
+      </p>
+      <div class="card dark" style="margin-bottom: 5mm">
+        <div class="k" style="color: var(--rust2)">GitHub</div>
+        <div
+          style="
+            font-family: Bricolage;
+            font-weight: 800;
+            font-size: 15pt;
+            color: #fff;
+            margin: 1mm 0 1mm;
+          "
+        >
+          github.com/waseemnasir2k26/skynet-live-clipper
+        </div>
+        <p style="margin: 0; color: #cfc8b8; font-size: 9.6pt">
+          Watches a live stream, scores moments from chat velocity, audio
+          energy, speech and an AI judge, renders branded 1080 x 1920 clips with
+          captions, and gives you a local Studio dashboard and a dry-run publish
+          queue. The README is a full A to Z setup guide.
+        </p>
+      </div>
+      <div class="cards c2">
+        <div class="card">
+          <h3>What was proven</h3>
+          <ul style="margin: 0; font-size: 9.4pt">
+            <li>
+              2.5 hours of a recorded stream replayed through the real-time path
+            </li>
+            <li>23,655 chat messages processed</li>
+            <li>81 moments judged, 10 rejected as unsafe</li>
+            <li>14 clips rendered, about 49 s from moment to finished clip</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>What is not proven</h3>
+          <ul style="margin: 0; font-size: 9.4pt">
+            <li>
+              It was a replay of a recording, not a full unattended live run
+            </li>
+            <li>Publishing was dry run only. Nothing was posted by it</li>
+            <li>
+              Twitch and Kick, Linux install and CPU-only mode are untested
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="cta" style="margin-top: 4mm">
+        <div class="k" style="color: var(--rust2)">Go deeper</div>
+        <h3 style="margin-top: 1mm">The AI Stream Clipper Playbook</h3>
+        <p style="margin: 0 0 3mm; font-size: 9.8pt">
+          A deeper paid playbook for people who want to run clipping as a
+          repeatable workflow. Sold on Etsy, shop <b>SkynetLabs</b>. Link in the
+          repo README.
+        </p>
+        <p class="small" style="margin: 0; color: #9d9686">
+          Playbook link: in the repo README
+          (github.com/waseemnasir2k26/skynet-live-clipper)
+        </p>
+      </div>
+      <h3 style="margin: 4mm 0 1mm">Need it built for your channel?</h3>
+      <p>
+        SkynetLabs builds AI automation and video systems for creators and
+        businesses. Message us on WhatsApp and tell us your stream, platforms
+        and goal.
+      </p>
+      <table>
+        <tr>
+          <td style="width: 30mm" class="k">Web</td>
+          <td>www.skynetlabsai.com &middot; skynetjoe.com</td>
+        </tr>
+        <tr>
+          <td class="k">WhatsApp</td>
+          <td>+62 813 1607 7185 &middot; wa.me/6281316077185</td>
+        </tr>
+        <tr>
+          <td class="k">Code</td>
+          <td>github.com/waseemnasir2k26/skynet-live-clipper</td>
+        </tr>
+      </table>
+      <div class="foot">
+        <span>&copy; 2026 SKYNETLABS &middot; FREE TO SHARE UNCHANGED</span
+        ><span>10</span>
+      </div>
+    </section>
+  </body>
+</html>

@@ -3,23 +3,23 @@
 source:
   # mode: live  -> own capture of `url` with yt-dlp (YouTube / Twitch / Kick)
   # mode: file  -> follow an existing (growing or finished) capture file
-  mode: file
-  url: "https://www.youtube.com/watch?v=ipZCIW7DNJo"
-  streamer: "CarryisLive"
-  credit: "@CarryisLive"
-  stream_title: "CarryMinati GTA VI live"
+  mode: live
+  url: ""                     # or pass --live URL on the command line
+  streamer: "StreamerName"    # shown on the clip card
+  credit: "@StreamerHandle"   # credited in every caption (needs the streamer's permission)
+  stream_title: ""            # filled automatically from the stream when empty
   # file mode only
-  file: "C:/Users/info/OneDrive/Desktop/GITHUB/_VIDEO/LIVE-CLIPPER-2026-11-24/capture/carry_1795458619.mp4"
-  chat_file: "C:/Users/info/OneDrive/Desktop/GITHUB/_VIDEO/LIVE-CLIPPER-2026-11-24/capture/chat_1795458620.live_chat.json.part"
-  start_epoch: 0            # 0 = parse from file name carry_<epoch>.mp4
+  file: ""                    # path to a recording (or pass --file)
+  chat_file: ""               # its yt-dlp live_chat .json (optional)
+  start_epoch: 0            # 0 = parse from a file name like capture_<epoch>.mp4
   stall_end_seconds: 240    # file stops growing this long => stream treated as ended
   live_format: "312+234/311+234/301/300/best[height<=1080]/best"
 
 paths:
-  data_root: "C:/clipper-data"
-  out_root: "C:/clipper-data/out"
-  render_lock: "C:/Users/info/OneDrive/Desktop/GITHUB/_VIDEO/RENDER.lock"
-  stop_file: "C:/clipper-data/STOP"
+  data_root: "data"
+  out_root: "data/out"
+  render_lock: "data/RENDER.lock"
+  stop_file: "data/STOP"
 
 ingest:
   segment_seconds: 10
@@ -48,7 +48,7 @@ asr:
   light_model: "small"
   device: "cuda"
   compute_type: "float16"
-  language: "hi"
+  language: "en"            # "hi" was the tested non-English case; any faster-whisper language code works
   chunk_seconds: 30
   beam_size: 2
 
@@ -86,7 +86,7 @@ render:
 safety:
   max_steps: 200000           # supervisor loop iterations
   max_wall_hours: 14
-  full_power_until: "2026-11-24T10:00:00+08:00"
+  full_power_until: ""        # e.g. "2026-12-01T22:00:00+08:00": after this time the engine switches itself to light_mode. Empty = never
   light_mode:                 # applied automatically after full_power_until
     asr_model: "small"
     asr_device: "cpu"

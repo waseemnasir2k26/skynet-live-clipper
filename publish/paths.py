@@ -8,7 +8,7 @@ if FIXTURES:
     ROOT = Path(os.environ.get("CLIPPER_ROOT", REPO / "studio" / "fixtures" / "data"))
     OUT = ROOT / "out"
 else:
-    ROOT = Path(os.environ.get("CLIPPER_ROOT", r"C:\clipper-data"))
+    ROOT = Path(os.environ.get("CLIPPER_ROOT", REPO / "data"))
     OUT = Path(os.environ.get("CLIPPER_OUT", ROOT / "out"))
 
 CLIPS = OUT / "clips"
@@ -22,4 +22,4 @@ BREAKER = OUT / "breaker.json"
 SETTINGS = OUT / "settings.json"
 DECISIONS = OUT / "decisions.json"   # studio-owned approve/reject/edit per clip (engine files stay read-only)
 STOP = ROOT / "STOP"
-SECRETS = Path.home() / ".secrets"
+SECRETS = Path(os.environ.get("CLIPPER_SECRETS", Path.home() / ".clipper"))   # credentials live OUTSIDE the repo

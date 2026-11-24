@@ -7,8 +7,8 @@ import subprocess
 
 from .util import BELOW_NORMAL, log
 
-PROMPT = """You are the editor of a top YouTube Shorts clipping channel for the Indian streamer {streamer}.
-Stream: "{title}". Language: Hindi/Hinglish. Judge whether this window of the live stream contains a
+PROMPT = """You are the editor of a top YouTube Shorts clipping channel for the streamer {streamer}.
+Stream: "{title}". Judge whether this window of the live stream contains a
 moment worth a standalone Short (funny reaction, rage, fail, shock, clutch play, roast, chat interaction,
 story with a punchline). Boring driving, menu time, silence, and generic talk score low. Be strict.
 
@@ -17,7 +17,7 @@ The transcript is automatic speech recognition of a loud gameplay mix, so it is 
 garbled: infer what happened from transcript + loudness peaks + chat reactions together, and do not
 mark a moment down just because the ASR is messy. Shouting, laughing, panic, chases, crashes, deaths,
 roasting chat, and big chat reactions ("L", "😂", emote spam, "W") are what makes a good clip here.
-Transcript (stream-second: words, Hindi in Devanagari or roman):
+Transcript (stream-second: words):
 {transcript}
 
 Chat messages during/after the window (viewer reactions, may lag ~10 s):
@@ -29,8 +29,8 @@ the first 2 seconds already grab attention, ends after the payoff / complete tho
 Reply with ONLY one JSON object, no prose, no code fence:
 {{"score": <0-100 viral potential>, "reason": "<one line, English, what happens>",
 "start": <stream second>, "end": <stream second>,
-"title": "<hook title, max 6 words, Roman Hinglish or English, no emojis, no quotes>",
-"caption": "<1-2 line social caption, Roman Hinglish, max 150 chars>",
+"title": "<hook title, max 6 words, in the stream's language written in Latin letters, no emojis, no quotes>",
+"caption": "<1-2 line social caption, same language, max 150 chars>",
 "hashtags": ["#tag", "..."],
 "safe": <false if the window shows or centres on sexual content, nudity, a strip club / lap dance, a pixelated
 or censored scene, gore close-ups, or real-world hate; otherwise true>,

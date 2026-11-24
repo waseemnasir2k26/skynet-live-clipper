@@ -13,18 +13,20 @@ FFMPEG = shutil.which("ffmpeg") or "ffmpeg"
 FFPROBE = shutil.which("ffprobe") or "ffprobe"
 YTDLP = shutil.which("yt-dlp") or "yt-dlp"
 
-# politeness: reserve CPU for the human (Windows box) -- RENDER_THREADS from the shared lib if present
+# politeness: leave ~25% of the CPU to whoever is using the machine
 RENDER_THREADS = max(2, (os.cpu_count() or 4) * 3 // 4)
-try:
-    sys.path.insert(0, str(Path.home() / ".claude" / "skills" / "_lib"))
-    from video_common import RENDER_THREADS as _RT, be_polite  # type: ignore
-    RENDER_THREADS = _RT
-except Exception:  # Linux/VPS: no shared lib
-    def be_polite(pid=None):
-        try:
+
+
+def be_polite(pid=None):
+    """Lower this process priority (BelowNormal on Windows, nice 5 elsewhere)."""
+    try:
+        if IS_WIN:
+            import ctypes
+            ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), BELOW_NORMAL)
+        else:
             os.nice(5)
-        except Exception:
-            pass
+    except Exception:
+        pass
 
 _LOG_FILE: Path | None = None
 BAD_STDERR = ("Stray %", "Cannot find", "Unable to parse", "No such filter", "Invalid argument",

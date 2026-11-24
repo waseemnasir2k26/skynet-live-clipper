@@ -1,12 +1,13 @@
-"""Five destination adapters behind one interface, wired to the existing social-publish lanes.
-Lane scripts live in ~/.secrets/youtube (RUNBOOK: ~/.claude/skills/social-publish/RUNBOOK.md).
+"""Five destination adapters behind one interface.
+The repo does NOT ship uploader scripts: for a real post you supply your own lane script per destination under
+<CLIPPER_SECRETS>/lanes (default ~/.clipper/lanes). See README, "Publish queue".
 Nothing here posts unless AUTO_PUBLISH is on AND --live is given; the default and only tested mode is dry run."""
 import sys
 from pathlib import Path
 from .base import Adapter, CREDIT, clip_dir
 from .. import paths
 
-LANES = paths.SECRETS / "youtube"
+LANES = paths.SECRETS / "lanes"
 PY = sys.executable
 
 
@@ -14,7 +15,7 @@ class YouTubeShorts(Adapter):
     name, label = "youtube", "YouTube Shorts"
     max_duration, max_size_mb, max_caption = 180.0, 256, 5000   # description limit
     script = "yt_upload.py"
-    credential = "youtube/token.json"       # OAuth token written by the YouTube Data API lane
+    credential = "youtube.credential"       # OAuth token written by your YouTube Data API uploader
 
     def job_spec(self, item, facts):
         from .base import load_meta
@@ -32,8 +33,8 @@ class YouTubeShorts(Adapter):
 class TikTok(Adapter):
     name, label = "tiktok", "TikTok"
     max_duration, max_size_mb, max_caption = 180.0, 287, 2200
-    script = "social/tt_schedule.py"        # cookie lane (TikTok Studio); never click "Post now" early
-    credential = "cookies-tiktok.json"
+    script = "tt_post.py"        # your own TikTok upload script
+    credential = "tiktok.credential"
 
     def job_spec(self, item, facts):
         return {"video": str(clip_dir(item["clip_id"]) / "clip.mp4"), "caption": facts["caption"], "now": True}
@@ -50,7 +51,7 @@ class InstagramReels(Adapter):
     name, label = "instagram", "Instagram Reels"
     max_duration, max_size_mb, max_caption = 90.0, 250, 2200
     script = "ig_reel.py"                   # Meta Graph content publishing
-    credential = "meta-ig.token"
+    credential = "instagram.credential"
 
     def job_spec(self, item, facts):
         return {"file": str(clip_dir(item["clip_id"]) / "clip.mp4"), "caption": facts["caption"],
@@ -67,12 +68,11 @@ class InstagramReels(Adapter):
 class FacebookReels(Adapter):
     name, label = "facebook", "Facebook Reels"
     max_duration, max_size_mb, max_caption = 90.0, 250, 2200
-    script = "fb_reel.py"                   # Meta Graph video_reels (Skynetlabs Page)
-    credential = "meta-page-skynetlabs.token"
+    script = "fb_reel.py"                   # Meta Graph video_reels
+    credential = "facebook.credential"
 
     def job_spec(self, item, facts):
-        return {"file": str(clip_dir(item["clip_id"]) / "clip.mp4"), "caption": facts["caption"], "now": True,
-                "token": "~/.secrets/meta-page-skynetlabs.token"}
+        return {"file": str(clip_dir(item["clip_id"]) / "clip.mp4"), "caption": facts["caption"], "now": True}
 
     def live_command(self, key):
         return [PY, str(LANES / self.script), "jobs.json", key]
@@ -81,8 +81,8 @@ class FacebookReels(Adapter):
 class XPost(Adapter):
     name, label = "x", "X"
     max_duration, max_size_mb, max_caption = 140.0, 512, 280
-    script = "social/x_post.py"             # cookie lane (X native composer); API lane is pay-per-use
-    credential = "cookies-x.json"
+    script = "x_post.py"             # your own X posting script
+    credential = "x.credential"
 
     def build_caption(self, meta, override=""):
         # X: 280 chars, credit must survive truncation. Hashtags limited to 2.

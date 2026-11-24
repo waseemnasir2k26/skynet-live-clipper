@@ -37,7 +37,7 @@ HYPE_PATTERNS = [
     (re.compile(r"(😂|🤣|😭|💀|😆|🤯|😱|🔥|☠️|😹)"), 1.0),
     (re.compile(r"\b(l+o+l+|lmao+|lmfao|rofl|kekw|xd+|haha+h*|hehe+|hahaha\w*)\b", re.I), 1.0),
     (re.compile(r"\b(omg|wtf|bruh+|op+|goat|legend|insane|gg|w+|rip|noo+|yoo+|letsgo+|let'?s go+)\b", re.I), 0.7),
-    (re.compile(r"\b(bhai+|bhau|bc|mc|gajab|kya baat|maza|mazaa|hasi|has has|pagal|bawal|op bolte|carry op)\b", re.I), 0.6),
+    (re.compile(r"\b(bhai+|bhau|bc|mc|gajab|kya baat|maza|mazaa|hasi|has has|pagal|bawal|op bolte)\b", re.I), 0.6),
     (re.compile(r"(हा+हा|हाहा|भाई|मज़ा|मजा)"), 0.6),
     (re.compile(r"[!?]{3,}"), 0.4),
     (re.compile(r":_?\w*(lol|haha|cry|laugh|rofl|kekw|dead|skull|omg|shock|pog|hype|lmao|kill)\w*:", re.I), 0.8),

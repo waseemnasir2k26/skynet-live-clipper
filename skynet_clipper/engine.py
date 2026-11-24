@@ -25,7 +25,10 @@ from .signals import (HourBudget, Peak, RollingZ, SpikeDetector, Timeline, combi
                       overlaps_any)
 from .util import BELOW_NORMAL, FFMPEG, YTDLP, log, run_ff, set_log
 
-COPYRIGHT = Path.home() / ".claude" / "skills" / "music-copyright-check" / "check_music.py"
+# Optional music-copyright gate: set CLIPPER_COPYRIGHT_CHECK to a script that takes a clip path and prints "VERDICT: ..."
+# (it is not shipped with this repo). Unset = gate skipped.
+_CC = os.environ.get("CLIPPER_COPYRIGHT_CHECK", "")
+COPYRIGHT = Path(_CC) if _CC else Path("__no_copyright_check__")
 
 
 def stream_id_from(url: str, fallback: str) -> str:
@@ -545,7 +548,10 @@ class Engine:
     def check_light_mode(self) -> None:
         if self.light:
             return
-        until = datetime.fromisoformat(self.cfg["safety"]["full_power_until"])
+        fp = self.cfg["safety"].get("full_power_until")
+        if not fp:
+            return          # empty = stay in full-power mode forever
+        until = datetime.fromisoformat(fp)
         if datetime.now(until.tzinfo) >= until:
             lm = self.cfg["safety"]["light_mode"]
             self.light = True

@@ -1,122 +1,324 @@
-# skynet-live-clipper
+# Skynet Live Clipper
 
-Watches a live stream as it happens, finds the moments worth a Short, and cuts branded 9:16 clips on its own.
+An AI system that watches a live stream, finds the moments worth a Short, and cuts them into branded vertical clips (1080x1920) with captions, a hook title and a cover image. It comes with a local dashboard (the Studio) and a publish queue that is **dry run by default**.
 
-```
-live URL ──► yt-dlp + ffmpeg ──► 10 s segments ─┬─► audio loudness per second ─┐
-             live chat (yt-dlp) ───────────────┼─► chat velocity + hype tokens ├─► rolling z-scores ─► spike ─► candidate
-                                                └─► faster-whisper (CUDA) ─────┘                                  │
-                                                                                                                  ▼
-          out/clips/<id>/clip.mp4 + cover.jpg + meta.json ◄── render (NVENC) ◄── LLM judge (claude haiku, strict JSON)
-```
+Built by [SkynetLabs](https://www.skynetlabsai.com). Free, MIT licensed.
 
-## What it does
+**Free PDF guide:** [`docs/Live-Stream-Clipping-Starter-Guide.pdf`](docs/Live-Stream-Clipping-Starter-Guide.pdf) (how stream clipping works, the four signals, layout and caption rules, a 7-day starter plan).
+**Playbook:** https://www.etsy.com/listing/4624484141
 
-1. **Ingest.** `mode: live` captures any yt-dlp URL itself (YouTube is proven; Twitch / Kick go through the same
-   yt-dlp path but were not tested). It cuts the stream into 10 s MPEG-TS segments and downloads live chat.
-   `mode: file` follows an existing capture file while it grows (or a finished VOD) with its chat JSON.
-   If the followed file stops growing while the stream is still live, the engine switches to its own capture.
-2. **Signals, every second of stream time.**
-   - chat messages per second against a 10-minute rolling median/MAD baseline (robust z-score),
-   - hype tokens in chat (😂 💀 lol, "L", channel emotes like `:_BakchodianLOL:`, superchats ×5),
-   - audio loudness (loudest 250 ms per second) against its own rolling baseline,
-   - faster-whisper `large-v3` on the GPU, Hindi, words with timestamps (Devanagari, transliterated to Roman Hinglish).
-3. **Candidates.** A combined score (chat and audio both count, agreement is rewarded) crosses a threshold → one
-   candidate per excursion. Chat-led peaks are shifted back by the viewer reaction lag (12 s). If nothing fires for
-   5 minutes, the best window in that span is still judged, so quiet stretches are not ignored.
-4. **LLM judge.** Headless `claude -p --model haiku` gets the transcript window, loudness peaks, chat bursts and
-   the chat messages, plus 5 frames of the window it opens with its Read tool (so it sees what happens on screen), and returns strict JSON: score 0-100, reason, start/end (20-55 s, hook first), title, caption,
-   hashtags, `safe`. Windows that show sexual content, strip-club / lap-dance scenes or a streamer-pixelated
-   scene are rejected as unsafe for Shorts (found on this stream: GTA VI club scenes). Calls are capped per hour and per stream. If the CLI is missing, fails or the cap is hit, a deterministic
-   signal-based score and window are used instead (marked in `reasons`).
-5. **Cut + design.** Facecam found once per stream (OpenCV YuNet face detector over 12 frames; override in config).
-   Stacked layout: zoomed facecam on top, gameplay below, a yellow divider, word-timed captions (2-3 words, active
-   word highlighted), a hook title for the first 2.6 s, a branded glass card (LIVE / credit / "clipped by AI") placed
-   over the spot where the original facecam would show twice. Loudness normalised to -14 LUFS. `h264_nvenc` with
-   `-hwaccel cuda`, libx264 fallback. A designed `cover.jpg` (loudest frame + title).
-6. **Gates.** Music copyright scan (Shazam-based `music-copyright-check` skill, if installed) runs on every clip and
-   writes `copyright.txt` next to it. Nothing is ever published or uploaded by this engine.
+![Live Watch dashboard](docs/screenshots/dashboard-live.png)
 
-## Output contract (`C:\clipper-data\out\`, Linux: `/var/lib/clipper-data/out/`)
+_Screenshots show the Studio with built-in demo data (synthetic, no real stream, no real people). The "DEMO DATA" watermark is part of demo mode._
 
-- `clips/<clip_id>/clip.mp4`, `cover.jpg`, `meta.json` = `{id, stream_url, streamer, stream_title, t_start, t_end,
-duration, created_at, score, reasons[], signals{chat_z, audio_z, llm_score}, transcript, title, caption,
-hashtags[], status:"ready"}` (+ `render.json`, `copyright.txt` extras that the contract does not depend on)
-- `state.json` rewritten every 5 s, `events.jsonl` and `signals.jsonl` append-only
-- optional input `commands.jsonl`: `{"ts": ..., "cmd": "watch", "url": "..."}` switches the engine to that live URL
+---
 
-## Run
+## Contents
 
-Windows (tested):
+1. [What it does](#1-what-it-does)
+2. [Honest status: proven vs not proven](#2-honest-status-proven-vs-not-proven)
+3. [Requirements](#3-requirements)
+4. [Install](#4-install)
+5. [Config walkthrough](#5-config-walkthrough)
+6. [Run on a live URL](#6-run-on-a-live-url)
+7. [Run on a recorded file (replay)](#7-run-on-a-recorded-file-replay)
+8. [Channel watcher](#8-channel-watcher)
+9. [The Studio dashboard](#9-the-studio-dashboard)
+10. [Publish queue and connecting accounts](#10-publish-queue-and-connecting-accounts)
+11. [Safety caps and the STOP breaker](#11-safety-caps-and-the-stop-breaker)
+12. [Light mode (no GPU)](#12-light-mode-no-gpu)
+13. [Output files](#13-output-files)
+14. [Tests](#14-tests)
+15. [Troubleshooting](#15-troubleshooting)
+16. [FAQ](#16-faq)
+17. [Only clip streams you have permission to clip](#17-only-clip-streams-you-have-permission-to-clip)
+18. [Licence](#18-licence)
+
+---
+
+## 1. What it does
 
 ```
-py -3.11 -m pip install -r requirements.txt
-py -3.11 run.py                                   # uses config.yaml (source.mode file|live)
-py -3.11 run.py --live https://www.youtube.com/watch?v=VIDEO_ID
-py -3.11 run.py --file capture.mp4 --chat capture.live_chat.json
-py -3.11 run.py --profile light                   # small whisper on CPU, libx264, 3 clips/hour
+live URL --> yt-dlp + ffmpeg --> 10 s segments --+--> audio loudness per second ---+
+live chat (yt-dlp) -----------------------------+--> chat velocity + hype words ---+--> rolling z-scores --> spike --> candidate
+                                                 +--> faster-whisper speech-to-text +                                  |
+                                                                                                                       v
+        clips/<id>/clip.mp4 + cover.jpg + meta.json <-- render (NVENC or x264) <-- LLM judge (strict JSON, sees 5 frames)
 ```
 
-Stop cleanly: create the file `C:\clipper-data\STOP` (delete it before the next start).
-Logs: `C:\clipper-data\<stream_id>\engine.log`. Counters: `C:\clipper-data\<stream_id>\stats.json`.
+1. **Ingest.** Captures a live URL with yt-dlp into 10-second MPEG-TS segments and downloads the live chat. Or follows a recording file.
+2. **Four signals, every second of stream time.**
+   - chat messages per second against a 10-minute rolling baseline (robust z-score),
+   - hype words and emotes in chat (laughing emojis, "lol", "W", "L", channel emotes, superchats count 5x),
+   - audio loudness (loudest 250 ms of each second) against its own baseline,
+   - speech: faster-whisper transcribes the audio with word timestamps.
+3. **Candidates.** A combined score crosses a threshold and becomes one candidate per spike. Chat-led peaks are shifted back by the viewer reaction lag (12 s). If nothing fires for 5 minutes, the best window in that span is still judged, so quiet stretches are not ignored.
+4. **LLM judge.** A headless `claude -p` call (Haiku by default) reads the transcript window, loudness peaks, chat bursts and chat text, and opens 5 frames from the window to see the screen. It returns strict JSON: score 0-100, reason, start/end (20-55 s, hook first), title, caption, hashtags and a `safe` flag. Sexual or otherwise unsuitable windows are rejected. If the CLI is missing, fails, or the hourly cap is hit, a deterministic signal-based score is used instead and marked in `reasons`.
+5. **Cut and design.** Finds the facecam once per stream (OpenCV YuNet face detector, or set it by hand), then renders a stacked layout: zoomed facecam on top, gameplay below, a divider, word-timed captions (2-3 words, active word highlighted), a hook title for the first 2.6 s, a "clipped by AI" credit card, loudness normalised to -14 LUFS, and a designed `cover.jpg`.
+6. **Nothing is published by the engine.** Clips land in a folder. Publishing is a separate, opt-in queue (section 10).
 
-Linux / VPS: `sudo bash deploy/install.sh`, then `systemctl enable --now skynet-live-clipper`. The light profile is
-meant for 4 vCPU / 8 GB without a GPU: capture + chat/audio detection + `small` whisper int8 on CPU + libx264
-veryfast, one clip at a time, systemd caps CPU at 300% and memory at 5 GB.
+## 2. Honest status: proven vs not proven
 
-## Modes (state.json `mode` = live | replay | vod)
+All numbers below are from one recorded test on 2026-11-24.
 
-- `live`: own capture of a live URL, or following a capture file that is still growing.
-- `vod`: a finished file (`--file`), processed as fast as the box allows. `--start-epoch` maps a wall-timed live chat
-  file onto a VOD (offset found by audio cross-correlation, see below).
-- `replay`: `--file X --replay [--replay-from S] [--replay-rate 1.0]` feeds a recording through the exact real-time
-  path (ffmpeg `-readrate`, chat released only when the video reaches it). For screen recording the dashboard; it is
-  always labelled `replay`, never `live`, and its moment-to-clip latency is measured against replay time.
+**Proven**
 
-## Channel watcher
+| What                                                         | Result                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Replay of a recorded 2.5 h stream through the real-time path | 23,655 chat messages processed                                      |
+| Moments judged by the vision LLM                             | 81                                                                  |
+| Rejected as unsafe                                           | 10                                                                  |
+| Clips rendered                                               | 14, all 1080x1920, no errors                                        |
+| Time from moment to finished clip                            | about 49 s on average (min 37 s, max 68 s), measured in replay time |
+| Render time per clip                                         | 17-25 s on an NVIDIA GPU (NVENC)                                    |
+| Live capture of a real YouTube live stream                   | captured and read chat (a short smoke run)                          |
+| Unit tests                                                   | 29 pass                                                             |
 
-`py -3.11 watch.py --channel https://www.youtube.com/@CarryisLive/streams --every 300` polls `<channel>/live` with
-one metadata-only yt-dlp call, starts `run.py --live <url>` when the channel is live, and goes back to polling when
-the engine exits. Never starts a second engine; caps on polls, hours and starts per day. Log
-`C:\clipper-data\watch.log`. Stop the watcher only: create `C:\clipper-data\WATCH-STOP`; `STOP` stops both.
+**Important caveats**
 
-## Heavy lane (after the laptop's full-power window): Kaggle -> Colab -> VPS light
+- The 2.5 h run was a **replay of a recording fed through the real-time path** (state shows `mode: replay`, never `live`). It is not a fully unattended live run over a whole stream.
+- **Publishing was dry run only.** No clip from this system has been posted by the publish queue. The five destination adapters are validated and dry-run tested, but the real upload scripts are not included (section 10).
+- Of the 14 test clips, about 4 were good, 5 fine and 5 weak. The stream was mostly driving and missions. Quality depends on the stream.
+- Captions come from speech-to-text on a loud game mix, so some words are wrong. The test language was Hindi (with a Roman-letter transliteration). English uses the same path but was not part of the recorded run.
 
-`py -3.11 -m skynet_clipper.kaggle_lane pack CHUNK.mkv [CHAT.json] --start-epoch E`, then `push <slug>` and
-`pull <slug>`. It uploads a PRIVATE dataset (chunk + chat + this repo's code, no secrets) and a PRIVATE GPU kernel
-(2x T4) that runs the same engine in `vod` mode with large-v3 whisper on CUDA and libx264. The claude CLI judge
-is not available there, so clips get the deterministic fallback score; re-judge on the laptop later. Status: a 60 s test chunk was pushed
-(private) and ran over an hour without finishing (most likely the `-follow` hang, now fixed with `follow: never`, not re-tested); the GPU run was replaced by a no-op version to stop it. Colab (needs a browser tab) and the VPS light profile
-(`deploy/`) are the next lanes.
+**Not tested:** Twitch and Kick (same yt-dlp path as YouTube, but never run), the Linux install script and systemd unit, the automatic switch to light mode at a set time, and CPU-only light mode end to end.
 
-## Safety and caps (all in `config.yaml`)
+## 3. Requirements
 
-- `safety.max_steps`, `safety.max_wall_hours`, `judge.max_calls_per_hour`, `judge.max_calls_per_stream`,
-  `clips.max_per_hour`; STOP file breaker.
-- Disk guard: capture stops below `ingest.min_free_gb` (40 GB); segments older than 8 h are pruned.
-- One render at a time, ffmpeg at BelowNormal priority with capped threads; the shared `RENDER.lock` is taken when
-  renders take longer than 60 s.
-- `safety.full_power_until`: after that time the engine switches itself to light mode (small whisper on CPU,
-  libx264, 3 clips/hour).
-- Supervisor restarts capture with backoff when HLS drops; HLS URLs are re-resolved on every restart.
+| Item             | Needed                          | Notes                                                                                                                                                   |
+| ---------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OS               | Windows 10/11 (tested) or Linux | Linux/VPS path is written but untested                                                                                                                  |
+| Python           | 3.10 or newer                   | engine tested on 3.11, unit tests also on 3.13                                                                                                          |
+| ffmpeg + ffprobe | yes, on PATH                    | needs the `libass` subtitle filter; a recent full build has it. NVENC build optional                                                                    |
+| yt-dlp           | yes, on PATH                    | for live URLs, chat download and channel polling                                                                                                        |
+| GPU              | optional                        | NVIDIA GPU gives CUDA speech-to-text (`large-v3`) and NVENC rendering. Without one use light mode (section 12)                                          |
+| LLM judge        | optional                        | the [Claude Code](https://docs.claude.com/en/docs/claude-code) CLI as `claude` on PATH, logged in. Without it the deterministic fallback scores moments |
+| Disk             | 40+ GB free recommended         | the capture guard stops below `ingest.min_free_gb` (40 by default)                                                                                      |
+| RAM              | 8 GB minimum                    | light mode targets 4 vCPU / 8 GB                                                                                                                        |
 
-## Tests
+Python packages (see `requirements.txt`): numpy, pyyaml, pillow, opencv-python-headless, faster-whisper. The Studio and the publish queue use only the standard library.
 
-`py -3.11 -m pytest -q tests` covers spike detection, rolling z-scores, dedupe, budgets, chat parsing, judge JSON
-parsing/bounds, transliteration and the output contract schema.
+## 4. Install
 
-## Honest limits
+```bash
+git clone https://github.com/waseemnasir2k26/skynet-live-clipper.git
+cd skynet-live-clipper
+python -m venv .venv
+# Windows:  .venv\Scripts\activate        Linux/macOS:  source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-- Captions come from Whisper Hindi ASR on a loud game mix; some words are wrong. Roman Hinglish is a rule-based
-  transliteration of Devanagari (good on common words, imperfect on English words Whisper wrote in Devanagari).
-- The facecam layout assumes a stable webcam position; a mid-stream scene change keeps the first layout until restart.
-- Chat timing is mapped by wall clock; viewer delay is a fixed 12 s guess.
-- Twitch / Kick, the Linux install script and the systemd unit were written but not run.
+Check the tools:
 
-## What was tested on 2026-11-24 (CarryisLive GTA VI stream ipZCIW7DNJo)
+```bash
+ffmpeg -version
+ffprobe -version
+yt-dlp --version
+claude --version        # optional (LLM judge)
+python -m pytest -q     # optional: 29 tests
+```
 
-- Live mode against the real YouTube stream: 170 s captured + 160 chat messages (smoke run, ASR/judge off).
-- Following the growing live capture while the stream was live (02:52-03:09): 8 clips cut from captured material.
-- Replay of the finished VOD with chat replay: 2.5 h of stream (VOD 3600-12600 s) through the real-time path,
-  3x / 1x / 3x legs: 81 candidates, 81 vision-LLM judgments, 14 clips, 0 errors.
-- Channel watcher polling. Not tested: Twitch/Kick, Linux/systemd install, Kaggle lane end to end, light mode switch.
+For CUDA speech-to-text on Windows, install the NVIDIA runtime wheels in the same environment: `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12`. If CUDA fails at run time the engine falls back to CPU int8 and logs it.
+
+Linux/VPS (untested): `sudo bash deploy/install.sh`, then edit `/opt/skynet-live-clipper/config.vps.yaml` and `systemctl enable --now skynet-live-clipper`.
+
+## 5. Config walkthrough
+
+Everything lives in `config.yaml`. The engine hot-reloads it every minute, so caps can be tightened without a restart. Relative paths are relative to the repo folder.
+
+| Section  | What to set                                                                                                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source` | `mode` (`live` or `file`), `url`, `streamer` and `credit` (shown on the clip card and in captions), `file` / `chat_file` for recordings, `live_format` (yt-dlp format selector) |
+| `paths`  | `data_root` (default `data`), `out_root`, `stop_file`, `render_lock`                                                                                                            |
+| `ingest` | `segment_seconds`, `keep_segments_hours` (old segments are pruned), `min_free_gb` (disk guard)                                                                                  |
+| `detect` | thresholds for chat, audio and combined score, `chat_lag_s`, `window_before_s` / `window_after_s`, `min_gap_s`, `quiet_sample_every_s`                                          |
+| `asr`    | `model` (`large-v3`), `device` (`cuda` or `cpu`), `compute_type`, `language` (any faster-whisper code, default `en`)                                                            |
+| `judge`  | the LLM command, `frames` it looks at, `timeout_s`, `max_calls_per_hour`, `max_calls_per_stream`, `min_score` (clips below it are not cut)                                      |
+| `clips`  | `max_per_hour`, `min_len` / `max_len`, watermark text, `hook_seconds`                                                                                                           |
+| `render` | size, encoder (`h264_nvenc` with `libx264` fallback), loudness, `layout` (`stack`, `pip`, `center`), `facecam_override` as `[x, y, w, h]` in source pixels                      |
+| `safety` | `max_steps`, `max_wall_hours`, `full_power_until`, `light_mode` settings                                                                                                        |
+
+Start by setting `source.streamer` and `source.credit`, then pick `source.mode`.
+
+Optional environment variables (see `.env.example`; nothing reads a `.env` file automatically, export them in your shell): `CLIPPER_CREDIT`, `CLIPPER_ROOT`, `CLIPPER_SECRETS`, `STUDIO_PORT`, `AUTO_PUBLISH`, `CLIPPER_COPYRIGHT_CHECK`.
+
+## 6. Run on a live URL
+
+```bash
+python run.py --live https://www.youtube.com/watch?v=VIDEO_ID
+python run.py --live https://www.youtube.com/watch?v=VIDEO_ID --profile light   # no GPU
+```
+
+YouTube is the proven path. Twitch and Kick URLs go through the same yt-dlp code but are untested. The engine writes `data/out/state.json` every 5 seconds and the clips to `data/out/clips/`. Stop cleanly with the STOP file (section 11).
+
+## 7. Run on a recorded file (replay)
+
+Replay feeds a recording through the exact real-time path (ffmpeg `-readrate`, chat released only when the video reaches it). It is always labelled `replay`, never `live`.
+
+```bash
+# 1) record or download the stream and its chat (you need permission, section 17)
+yt-dlp -o capture.mp4 "https://www.youtube.com/watch?v=VIDEO_ID"
+yt-dlp --skip-download --write-subs --sub-langs live_chat -o capture "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# 2) replay it at real time, or faster with --replay-rate 3
+python run.py --file capture.mp4 --chat capture.live_chat.json --vod --replay --replay-from 0 --replay-rate 3
+```
+
+Other file modes:
+
+- `--file X --vod` processes a finished file as fast as the machine allows (chat timed by video offset).
+- `--file X` alone follows a file that is still growing.
+
+## 8. Channel watcher
+
+```bash
+python watch.py --channel https://www.youtube.com/@SomeChannel --every 300
+```
+
+Polls `<channel>/live` with one metadata-only yt-dlp call, starts `run.py --live <url>` when the channel goes live, and goes back to polling when the engine exits. It never starts a second engine and has caps on polls, hours and engine starts per day. Log: `data/watch.log`. Stop only the watcher with a `data/WATCH-STOP` file.
+
+## 9. The Studio dashboard
+
+```bash
+python studio/server.py        # http://127.0.0.1:8790
+```
+
+The Studio is a single local page (standard library server, bound to `127.0.0.1` only, with Host and Origin checks). It reads the engine output and lets you review clips.
+
+| Section       | What it shows                                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Live Watch    | status, hours watched, chat read, moments judged, clips ready, the signal graph with moments marked, a live event feed |
+| Clips         | every clip with score, reasons and a player; approve, reject or edit the caption                                       |
+| Publish queue | approved clips scheduled per destination, with a dry-run button                                                        |
+| Connections   | which destinations have a credential file and an uploader script                                                       |
+| Settings      | caps, spacing, posting window, auto-publish switch (simulated, see section 10)                                         |
+
+![Clips](docs/screenshots/dashboard-clips.png)
+![Publish queue](docs/screenshots/dashboard-publish-queue.png)
+![Connections](docs/screenshots/dashboard-connections.png)
+
+**Try it without an engine run:** demo mode generates synthetic data (abstract covers, no real people).
+
+```bash
+python studio/fixtures/make_fixtures.py
+# Linux/macOS/Git Bash:
+CLIPPER_FIXTURES=1 python studio/server.py
+# PowerShell:
+$env:CLIPPER_FIXTURES="1"; python studio/server.py
+```
+
+## 10. Publish queue and connecting accounts
+
+**Default and only tested mode: dry run.** A dry run validates the clip (1080x1920, duration and size limits per platform, caption length, credit present), builds the exact payload that would be sent, and writes it to a ledger. It posts nothing.
+
+```bash
+python -m publish.cli enqueue CLIP_ID      # add an approved clip to the queue
+python -m publish.cli dry-run CLIP_ID      # validate against all five destinations
+python -m publish.cli schedule             # place approved clips into posting slots
+python -m publish.cli tick                 # run due items (dry run)
+python -m publish.cli ledger               # what happened
+python -m publish.cli status               # config, breaker, queue
+```
+
+Destinations: YouTube Shorts, TikTok, Instagram Reels, Facebook Reels, X. Built-in limits: 3 posts per destination per day, 10 per day total, 90 minutes between posts on one destination, a 09:00-22:00 posting window, and a circuit breaker that opens after 2 consecutive failures on a destination. Posts are idempotent (the same clip is never posted twice to one destination).
+
+**Connecting accounts (your own uploader).** This repo does not include uploader scripts or any credentials. For a real post you provide one script per destination, plus a credential file, in a folder outside the repo (`~/.clipper` by default, or `CLIPPER_SECRETS`):
+
+```
+~/.clipper/
+  youtube.credential  tiktok.credential  instagram.credential  facebook.credential  x.credential
+  lanes/yt_upload.py  tt_post.py  ig_reel.py  fb_reel.py  x_post.py
+```
+
+The Connections page shows a destination as connected when its credential file exists (the file is never read or displayed). Each script receives a job file and must post the video; use the official platform APIs where you can. Platform terms apply to you.
+
+**Real posting needs all four at once:** `auto_publish` on in the settings, the environment variable `AUTO_PUBLISH=true`, the `--live` flag on `python -m publish.cli tick --live`, and an uploader script. Missing any one keeps it a dry run. Real posting has **not** been tested.
+
+## 11. Safety caps and the STOP breaker
+
+All caps live in `config.yaml`, not in prompts:
+
+- `safety.max_steps` and `safety.max_wall_hours`: the engine halts when either is reached.
+- `judge.max_calls_per_hour` and `judge.max_calls_per_stream`: hard cap on LLM calls.
+- `clips.max_per_hour`: clip budget.
+- Disk guard: capture stops below `ingest.min_free_gb`; segments older than `keep_segments_hours` are pruned.
+- One render at a time, ffmpeg at below-normal priority with capped threads, so the machine stays usable.
+- Supervisor restarts capture with backoff when the stream drops and re-resolves the stream URL on every restart.
+
+**STOP breaker:** create an empty file `data/STOP` and the engine, the watcher and the publish queue all halt cleanly. Delete it before the next start.
+
+```bash
+touch data/STOP        # Windows: type nul > data\STOP
+```
+
+## 12. Light mode (no GPU)
+
+```bash
+python run.py --live URL --profile light
+```
+
+Light mode uses the `small` speech model on CPU (int8), `libx264` and 3 clips per hour. It is meant for a 4 vCPU / 8 GB machine. You can also set `safety.full_power_until` to a timestamp: after that moment the engine switches itself to light mode (empty = never). Light mode end to end is untested.
+
+## 13. Output files
+
+Under `data/out/` (override with `paths.out_root`):
+
+- `clips/<clip_id>/clip.mp4`, `cover.jpg`, `meta.json` with `{id, stream_url, streamer, stream_title, t_start, t_end, duration, created_at, score, reasons[], signals{chat_z, audio_z, llm_score}, transcript, title, caption, hashtags[], status}`
+- `state.json` (rewritten every 5 s), `events.jsonl` and `signals.jsonl` (append-only)
+- optional input `commands.jsonl`: `{"cmd": "watch", "url": "..."}` switches the engine to that live URL
+- `python -m skynet_clipper.qa` prints a QA summary of the clips
+
+All of `data/` is git-ignored.
+
+## 14. Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+29 tests cover spike detection, rolling z-scores, deduplication, budgets, chat parsing, judge JSON parsing and bounds, transliteration, the output contract, and the publish queue (idempotency, caps, spacing, window, breaker, STOP, the triple live gate).
+
+## 15. Troubleshooting
+
+| Symptom                                | Fix                                                                                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ffmpeg` or `yt-dlp` not found         | install them and make sure they are on PATH (`ffmpeg -version`)                                                                                      |
+| No clips appear                        | check `data/<stream_id>/engine.log`; lower `judge.min_score` or `detect.combined_trigger`; confirm chat is being read (`state.json` `chat_messages`) |
+| Every clip is weak                     | the stream may simply have few moments; raise `min_score` instead of lowering it                                                                     |
+| Judge never runs                       | `claude` is not on PATH or not logged in; the engine uses the fallback score and says so in `reasons`                                                |
+| CUDA error or very slow speech-to-text | install the NVIDIA wheels (section 4) or use `--profile light`                                                                                       |
+| Captions in the wrong language         | set `asr.language` to the stream language                                                                                                            |
+| Facecam crop is wrong                  | set `render.facecam_override: [x, y, w, h]` (source pixels)                                                                                          |
+| Capture stops early                    | disk guard: free space above `ingest.min_free_gb` or lower it                                                                                        |
+| Engine will not start                  | a `data/STOP` file exists; delete it                                                                                                                 |
+| Dashboard empty                        | the engine has not written `data/out/state.json` yet; the page shows "no engine data" until it does                                                  |
+| Port 8790 busy                         | set `STUDIO_PORT`                                                                                                                                    |
+
+## 16. FAQ
+
+**Does it post clips by itself?** No. The engine only writes files. The publish queue is separate and dry run by default.
+
+**Which platforms?** Input: anything yt-dlp can capture (YouTube proven, Twitch/Kick untested). Output: 9:16 files you can upload anywhere.
+
+**Do I need a GPU?** No, but speech-to-text and rendering are much faster with one. See light mode.
+
+**Do I need the Claude CLI?** No. Without it, scoring falls back to the deterministic signal score, which finds fewer good moments and cannot see the screen.
+
+**Does it work for non-English streams?** The tested case was Hindi. Set `asr.language`. Hype-word lists are English plus some Hinglish; add your own in `skynet_clipper/signals.py`.
+
+**Can it clip a stream that is not mine?** Only with permission. See below.
+
+**How much does it cost to run?** The software is free. LLM judge calls use your Claude subscription or API usage, capped by `judge.max_calls_per_hour`.
+
+## 17. Only clip streams you have permission to clip
+
+Clipping someone else's stream, even with credit, can infringe their rights and break platform terms. Get the streamer's permission before you cut or post their content, credit them, and expect copyrighted music in a stream to trigger claims or mutes even when the streamer agrees. The system only helps you find moments; what you publish is your responsibility. It also flags sexual and similar content for rejection, but that filter is a helper, not a guarantee, so review every clip before posting.
+
+## 18. Licence
+
+MIT. See [LICENSE](LICENSE).
+
+---
+
+Built by **SkynetLabs** - [www.skynetlabsai.com](https://www.skynetlabsai.com) - [skynetjoe.com](https://skynetjoe.com) - WhatsApp [+62 813 1607 7185](https://wa.me/6281316077185)

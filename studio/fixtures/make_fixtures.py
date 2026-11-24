@@ -6,9 +6,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "data" / "out"
+import os
+OUT = Path(os.environ.get("CLIPPER_FIXTURE_DIR", HERE / "data")) / "out"
 FONTS = HERE.parent / "static" / "fonts"
-FF = shutil.which("ffmpeg") or r"C:\Users\info\ffmpeg-nvenc\bin\ffmpeg.exe"
+FF = shutil.which("ffmpeg") or "ffmpeg"
 INK, CREAM, RUST = (26, 26, 26), (242, 239, 230), (198, 107, 63)
 rnd = random.Random(24)
 
@@ -69,13 +70,13 @@ def make():
         d.mkdir()
         cover(d / "cover.jpg", title, i, score)
         t0 = 1200 + i * 1500 + rnd.randint(0, 300)
-        meta = {"id": cid, "stream_url": "https://www.twitch.tv/carryislive", "streamer": "CarryisLive",
+        meta = {"id": cid, "stream_url": "https://www.twitch.tv/demo_streamer", "streamer": "DemoStreamer",
                 "stream_title": "DEMO: ranked grind, chat picks the loadout", "t_start": t0, "t_end": t0 + dur,
                 "duration": dur, "created_at": (now - timedelta(minutes=(len(CLIPS) - i) * 22)).isoformat(timespec="seconds"),
                 "score": score, "reasons": reasons,
                 "signals": {"chat_z": round(2.0 + score / 40, 1), "audio_z": round(1.5 + score / 55, 1), "llm_score": score},
                 "transcript": tr, "title": title,
-                "caption": f"{title}. Watch it live with @CarryisLive.",
+                "caption": f"{title}. Watch it live with @DemoStreamer.",
                 "hashtags": ["#shorts", "#livestream", "#gaming", "#clutch"], "status": "ready"}
         (d / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
         subprocess.run([FF, "-y", "-v", "error", "-loop", "1", "-framerate", "30", "-i", str(d / "cover.jpg"),
@@ -97,7 +98,7 @@ def make():
                     "chat_rate": round(chat, 1), "chat_z": round((chat - 17) / 6, 2),
                     "audio_db": round(audio, 1), "audio_z": round((audio + 33) / 3.2, 2)})
     (OUT / "signals.jsonl").write_text("\n".join(json.dumps(x) for x in sig) + "\n", encoding="utf-8")
-    ev = [{"ts": started.isoformat(timespec="seconds"), "type": "info", "msg": "Watching twitch.tv/carryislive", "data": {}}]
+    ev = [{"ts": started.isoformat(timespec="seconds"), "type": "info", "msg": "Watching twitch.tv/demo_streamer", "data": {}}]
     for k, sp in enumerate(spikes):
         ts = t_end - timedelta(seconds=(n - sp) * 5)
         z = round(2.8 + k * 0.4, 1)
@@ -105,7 +106,7 @@ def make():
                {"ts": (ts + timedelta(seconds=14)).isoformat(timespec="seconds"), "type": "judged", "msg": f"AI judge: {CLIPS[k][1]}/100 - {CLIPS[k][3][-1].replace('AI judge: ', '')}", "data": {"score": CLIPS[k][1]}},
                {"ts": (ts + timedelta(seconds=55)).isoformat(timespec="seconds"), "type": "cut", "msg": f"Clip cut in {38 + k * 3} s", "data": {}}]
     (OUT / "events.jsonl").write_text("\n".join(json.dumps(x) for x in ev) + "\n", encoding="utf-8")
-    state = {"stream_url": "https://www.twitch.tv/carryislive", "streamer": "CarryisLive",
+    state = {"stream_url": "https://www.twitch.tv/demo_streamer", "streamer": "DemoStreamer",
              "stream_title": "DEMO: ranked grind, chat picks the loadout", "live": True,
              "started_at": started.isoformat(timespec="seconds"), "captured_seconds": int((now - started).total_seconds()),
              "chat_messages": 18420, "candidates_seen": 19, "clips_ready": len(CLIPS),

@@ -1,6 +1,61 @@
+# runtime data, outputs, clips, VODs, captures
+/data/
+/out/
+/clips/
+/vod/
+/capture/
+/captures/
+/segments/
+*.mp4
+*.mkv
+*.ts
+*.webm
+*.m4a
+*.wav
+*.part
+*.live_chat.json
+# state / ledger / queue files
+state.json
+stats.json
+queue.json
+ledger.jsonl
+events.jsonl
+signals.jsonl
+commands.jsonl
+breaker.json
+settings.json
+decisions.json
+*.pid
+STOP
+WATCH-STOP
+RENDER.lock
+# logs and caches
+*.log
+logs/
 __pycache__/
 *.pyc
+.pytest_cache/
+.cache/
+.venv/
+venv/
+# secrets
 .env
-*.log
-/out/
-/data/
+.env.*
+!.env.example
+*.token
+*.credential
+cookies*.json
+token.json
+client_secret*.json
+# studio demo data and recordings
+studio/fixtures/data/
+studio/recordings/
+studio/screenshots/
+# local overrides
+config.local.yaml
+config.vps.yaml
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

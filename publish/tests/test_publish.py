@@ -170,8 +170,9 @@ def test_adapter_live_refuses_without_env(env):
 
 def test_x_caption_keeps_credit(env):
     from publish.adapters import get_adapter
+    from publish.adapters.base import CREDIT
     cap = get_adapter("x").build_caption({"title": "word " * 100, "hashtags": ["a", "b", "c"]})
-    assert len(cap) <= 280 and "@CarryisLive" in cap
+    assert len(cap) <= 280 and CREDIT in cap
 
 
 def test_enqueue_idempotent(env):

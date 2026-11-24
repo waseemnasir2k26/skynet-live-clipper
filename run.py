@@ -1,6 +1,6 @@
 """Supervisor: python run.py [--config config.yaml] [--live URL] [--file PATH --chat PATH]
 
-Stop cleanly: create the file named in config paths.stop_file (default C:/clipper-data/STOP).
+Stop cleanly: create the file named in config paths.stop_file (default data/STOP).
 """
 from __future__ import annotations
 
@@ -36,6 +36,9 @@ def main() -> int:
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
     cfg["_config_path"] = a.config
+    for k, v in cfg["paths"].items():      # relative paths are relative to the repo folder, not the shell's cwd
+        if not os.path.isabs(v):
+            cfg["paths"][k] = str(Path(__file__).resolve().parent / v)
     if a.live:
         cfg["source"].update(mode="live", url=a.live, start_epoch=0)
         try:  # real title/channel of this stream for meta.json

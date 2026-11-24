@@ -150,6 +150,37 @@ def badge_rect(lay: Layout, out_w: int = 1080, out_h: int = 1920) -> tuple[int, 
     return 0, out_h - 190, 380, out_h
 
 
+SIDEBAR_TEXT = "AUTO CLIP BY SKYNETLABS AI SYSTEM"
+
+
+def sidebar_rect(lay: Layout, out_w: int = 1080, out_h: int = 1920) -> tuple[int, int, int, int]:
+    """Left brand bar: inside the gameplay area, below the hook title band, above the corner badge.
+    Narrow (56 px) so it never reaches the facecam (top panel) or the centred captions."""
+    _, by0, _, _ = badge_rect(lay, out_w, out_h)
+    top = (lay.cam_h + 190) if lay.kind == "stack" else 420
+    return 10, top, 66, by0 - 24
+
+
+def draw_sidebar(im, lay: Layout, font_path: str, out_w: int = 1080, out_h: int = 1920):
+    """Vertical 'AUTO CLIP BY SKYNETLABS AI SYSTEM' bar (SkynetLabs ink/cream/rust), reads bottom to top."""
+    from PIL import Image, ImageDraw, ImageFont
+    x0, y0, x1, y1 = sidebar_rect(lay, out_w, out_h)
+    h, w = y1 - y0, x1 - x0
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([x0, y0, x1, y1], radius=16, fill=(20, 19, 15, 215), outline=(198, 107, 63, 255), width=3)
+    size = 26
+    f = ImageFont.truetype(font_path, size)
+    while size > 14 and d.textlength(SIDEBAR_TEXT, font=f) > h - 36:
+        size -= 1; f = ImageFont.truetype(font_path, size)
+    strip = Image.new("RGBA", (h, w), (0, 0, 0, 0)); sd = ImageDraw.Draw(strip)
+    a, b = SIDEBAR_TEXT.split("SKYNETLABS")
+    tw = sd.textlength(SIDEBAR_TEXT, font=f); x = (h - tw) / 2; y = (w - size) / 2 - 3
+    for part, col in ((a, (242, 239, 230, 255)), ("SKYNETLABS", (232, 137, 90, 255)), (b, (242, 239, 230, 255))):
+        sd.text((x, y), part, font=f, fill=col); x += sd.textlength(part, font=f)
+    im.alpha_composite(strip.rotate(90, expand=True), (x0, y0))
+    return im
+
+
 def make_badge(lay: Layout, path, credit: str, watermark: str, font_path: str, out_w: int = 1080, out_h: int = 1920):
     from PIL import Image, ImageDraw, ImageFont
     im = Image.new("RGBA", (out_w, out_h), (0, 0, 0, 0))
@@ -168,5 +199,6 @@ def make_badge(lay: Layout, path, credit: str, watermark: str, font_path: str, o
         d.text((px, py + 66), credit, font=f_cred, fill=(255, 255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0, 255))
     if watermark:
         d.text((px, py + 122), watermark, font=f_mark, fill=(255, 255, 255, 190))
+    draw_sidebar(im, lay, font_path, out_w, out_h)
     im.save(path)
     return path

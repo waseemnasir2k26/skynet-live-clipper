@@ -1,11 +1,11 @@
 """Channel watcher: poll a channel cheaply and start the engine in live mode when it goes live.
 
-  py -3.11 watch.py --channel https://www.youtube.com/@CarryisLive [--every 300]
+  py -3.11 watch.py --channel https://www.youtube.com/@SomeChannel [--every 300]
 
 Each poll = one `yt-dlp --print live_status <channel>/live` call (no download). When it reports is_live, the
 watcher runs `run.py --live <watch URL>` (same caps, STOP breaker, light mode after the full-power window) and
 resumes polling after the engine exits. It never starts a second engine while one is running.
-Stop: create C:/clipper-data/STOP (stops the engine too) or C:/clipper-data/WATCH-STOP (watcher only).
+Stop: create data/STOP (stops the engine too) or data/WATCH-STOP (watcher only).
 Caps: --max-polls (default 4000), --max-hours (default 168), engine starts per day (default 6).
 """
 from __future__ import annotations
@@ -65,7 +65,7 @@ def poll(channel: str) -> tuple[str, str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", default="https://www.youtube.com/@CarryisLive/streams")
+    ap.add_argument("--channel", required=True, help="channel URL, e.g. https://www.youtube.com/@SomeChannel")
     ap.add_argument("--every", type=int, default=300, help="seconds between polls")
     ap.add_argument("--max-polls", type=int, default=4000)
     ap.add_argument("--max-hours", type=float, default=168)
@@ -73,6 +73,9 @@ def main() -> int:
     ap.add_argument("--config", default=str(HERE / "config.yaml"))
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
+    for k, v in cfg["paths"].items():
+        if not os.path.isabs(v):
+            cfg["paths"][k] = str(HERE / v)
     root = Path(cfg["paths"]["data_root"])
     root.mkdir(parents=True, exist_ok=True)
     logp = root / "watch.log"

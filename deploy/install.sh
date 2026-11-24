@@ -13,8 +13,7 @@ python3 -m venv "$APP/.venv"
 "$APP/.venv/bin/pip" install --upgrade pip
 "$APP/.venv/bin/pip" install -r "$APP/requirements.txt" yt-dlp
 # VPS config: Linux paths, light profile, libx264, small whisper on CPU
-sed -e "s#C:/clipper-data#$DATA#g" \
-    -e 's#render_lock: .*#render_lock: "/var/lib/clipper-data/RENDER.lock"#' \
+sed -e 's#"data/#"'"$DATA"'/#g' -e 's#data_root: "data"#data_root: "'"$DATA"'"#' \
     -e 's#encoder: "h264_nvenc"#encoder: "libx264"#' \
     -e 's#device: "cuda"#device: "cpu"#' -e 's#compute_type: "float16"#compute_type: "int8"#' \
     -e 's#mode: file#mode: live#' \

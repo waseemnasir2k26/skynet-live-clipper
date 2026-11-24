@@ -19,7 +19,7 @@ DEFAULT_STEPS = [
 
 
 def ffmpeg():
-    return shutil.which("ffmpeg") or r"C:\Users\info\ffmpeg-nvenc\bin\ffmpeg.exe"
+    return shutil.which("ffmpeg") or "ffmpeg"
 
 
 def run_steps(pg, steps, seconds):

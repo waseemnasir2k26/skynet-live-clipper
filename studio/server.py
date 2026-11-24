@@ -1,5 +1,5 @@
 """Skynet Live Clipper Studio server. stdlib only. 127.0.0.1:8790.
-Default reads the real engine output at C:\\clipper-data\\out. CLIPPER_FIXTURES=1 reads studio/fixtures/data
+Default reads the engine output in <repo>/data/out (override: CLIPPER_ROOT). CLIPPER_FIXTURES=1 reads studio/fixtures/data
 and shows a DEMO DATA watermark. Never posts anything: publishing goes through publish/ and is dry-run only here."""
 from __future__ import annotations
 import json, mimetypes, os, random, re, sys, threading, time, math

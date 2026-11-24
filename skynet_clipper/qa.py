@@ -57,7 +57,7 @@ def check_clip(d: Path, qa_dir: Path) -> dict:
 
 
 def main() -> None:
-    out = Path(sys.argv[1] if len(sys.argv) > 1 else "C:/clipper-data/out")
+    out = Path(sys.argv[1] if len(sys.argv) > 1 else "data/out")
     sdir = Path(sys.argv[2]) if len(sys.argv) > 2 else None
     rows = [check_clip(d, out / "qa") for d in sorted((out / "clips").iterdir()) if (d / "clip.mp4").exists()]
     for r in rows:

@@ -59,7 +59,7 @@ def test_hour_budget():
 
 def test_hype_score():
     assert hype_score("hahaha 😂😂") > hype_score("hello")
-    assert hype_score(":_BakchodianLOL:") > 0
+    assert hype_score(":_ChannelLOL:") > 0
 
 
 def test_chat_parse_and_timeline():
@@ -75,10 +75,10 @@ def test_chat_parse_and_timeline():
 
 
 def test_judge_parse_and_bounds():
-    txt = 'noise {"score": 81, "reason": "x", "start": 100, "end": 190, "title": "T", "caption": "c", "hashtags": ["gta", "#carry"]}'
+    txt = 'noise {"score": 81, "reason": "x", "start": 100, "end": 190, "title": "T", "caption": "c", "hashtags": ["gta", "#clip"]}'
     v = parse_reply(txt, 90, 170, 20, 55)
     assert v["score"] == 81 and v["start"] == 100 and v["end"] == 155
-    assert v["hashtags"] == ["#gta", "#carry"]
+    assert v["hashtags"] == ["#gta", "#clip"]
     s, e = fix_bounds(100, 105, 90, 170, 20, 55)
     assert e - s >= 20 and s >= 90 and e <= 170
     assert parse_reply("no json here", 0, 10, 20, 55) is None
