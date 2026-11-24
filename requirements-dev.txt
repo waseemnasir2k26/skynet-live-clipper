@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=7.0
+# only for tools/record_studio.py (screen-recording the dashboard)
+playwright>=1.40

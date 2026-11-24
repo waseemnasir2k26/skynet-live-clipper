@@ -1,0 +1,23 @@
+[Unit]
+Description=skynet-live-clipper engine (light profile, no GPU)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=clipper
+WorkingDirectory=/opt/skynet-live-clipper
+Environment=PYTHONIOENCODING=utf-8
+ExecStart=/opt/skynet-live-clipper/.venv/bin/python run.py --config /opt/skynet-live-clipper/config.vps.yaml --profile light
+Restart=on-failure
+RestartSec=30
+# a clean exit (stream ended / STOP file / caps) stays stopped
+SuccessExitStatus=0
+Nice=10
+CPUQuota=300%
+MemoryMax=5G
+MemoryHigh=4G
+TasksMax=200
+
+[Install]
+WantedBy=multi-user.target
