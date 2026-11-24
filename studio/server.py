@@ -1,4 +1,4 @@
-"""Skynet Live Clipper Studio server. stdlib only. 127.0.0.1:8790.
+"""SkynetLabs Clipping System - Studio server. stdlib only. 127.0.0.1:8790.
 Default reads the engine output in <repo>/data/out (override: CLIPPER_ROOT). CLIPPER_FIXTURES=1 reads studio/fixtures/data
 and shows a DEMO DATA watermark. Never posts anything: publishing goes through publish/ and is dry-run only here."""
 from __future__ import annotations

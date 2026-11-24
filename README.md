@@ -1,15 +1,67 @@
-# Skynet Live Clipper
+<p align="center">
+  <img src="docs/img/social-preview.png" alt="SkynetLabs Clipping System: AI that watches live streams and clips the best moments" width="100%">
+</p>
 
-An AI system that watches a live stream, finds the moments worth a Short, and cuts them into branded vertical clips (1080x1920) with captions, a hook title and a cover image. It comes with a local dashboard (the Studio) and a publish queue that is **dry run by default**.
+# SkynetLabs Clipping System
 
-Built by [SkynetLabs](https://www.skynetlabsai.com). Free, MIT licensed.
+**AI that watches live streams and clips the best moments.**
 
-**Free PDF guide:** [`docs/Live-Stream-Clipping-Starter-Guide.pdf`](docs/Live-Stream-Clipping-Starter-Guide.pdf) (how stream clipping works, the four signals, layout and caption rules, a 7-day starter plan).
-**Playbook:** https://www.etsy.com/listing/4624484141
+[![License: MIT](https://img.shields.io/badge/license-MIT-c66b3f)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776ab)](#3-requirements)
+[![Publishing: dry run by default](https://img.shields.io/badge/publishing-dry%20run%20by%20default-4f8a5b)](#10-publish-queue-and-connecting-accounts)
+[![Free PDF guide](https://img.shields.io/badge/free%20guide-PDF-1a1a1a)](docs/Live-Stream-Clipping-Starter-Guide.pdf)
 
-![Live Watch dashboard](docs/screenshots/dashboard-live.png)
+Built by [SkynetLabs](https://www.skynetlabsai.com) (repo name: `skynet-live-clipper`). Free and MIT licensed.
 
-_Screenshots show the Studio with built-in demo data (synthetic, no real stream, no real people). The "DEMO DATA" watermark is part of demo mode._
+## In 30 seconds
+
+It watches a live stream (or a recording), reads four signals every second (chat speed, hype words, audio energy, speech), asks an AI judge which moments are worth a Short, and renders each one as a branded 1080x1920 clip with captions, a hook title and a cover. You review the clips in a local dashboard. Publishing is a separate queue that is **dry run by default**.
+
+![Animated tour of the Studio dashboard: live watch, clips, publish queue, connections, settings](docs/img/studio-tour.gif)
+
+*A short tour of the Studio dashboard, recorded on built-in synthetic demo data (not a real stream).*
+
+## Quick start
+
+```bash
+git clone https://github.com/waseemnasir2k26/skynet-live-clipper.git
+cd skynet-live-clipper
+pip install -r requirements.txt
+python run.py --live https://www.youtube.com/watch?v=VIDEO_ID --profile light   # or drop --profile light if you have an NVIDIA GPU
+python studio/server.py                                                          # dashboard: http://127.0.0.1:8790
+```
+
+You need `ffmpeg` and `yt-dlp` on PATH (details in [Requirements](#3-requirements)). Only clip streams you have permission to clip ([why](#17-only-clip-streams-you-have-permission-to-clip)).
+
+![The Live Watch overview: moments judged, clips ready, signal graph and live event feed](docs/img/dash-overview.png)
+
+*Studio overview with demo data: counters, the signal graph with detected moments, and the live event feed.*
+
+## Feature grid
+
+| | |
+|---|---|
+| **4 signals** | chat velocity, hype words, audio energy, speech (faster-whisper) against rolling baselines |
+| **AI judge** | strict-JSON verdict with a safe flag, sees 5 frames of the window; deterministic fallback if unavailable |
+| **9:16 renderer** | facecam on top, action below, word-timed captions, hook title, credit card, -14 LUFS, cover image |
+| **Studio dashboard** | local, standard-library server on 127.0.0.1: review, approve, reject, edit captions |
+| **Publish queue** | 5 destinations, hard caps, spacing, posting window, circuit breaker, idempotent ledger. **Dry run by default** |
+| **Safety** | step, wall-clock and LLM-call caps, disk guard, STOP file halts everything |
+| **Light mode** | small model on CPU for a 4 vCPU / 8 GB box (not tested end to end) |
+| **Channel watcher** | starts the engine when a channel goes live |
+
+## Honest status (read this)
+
+- The test was a **replay of a recording** (2.5 h of a public stream fed through the real-time path), not a full unattended live run.
+- **Publishing is dry run only.** Nothing has been posted by this system. Real uploaders are not included.
+- Twitch and Kick, the Linux install and light mode end to end are untested. Details in [section 2](#2-honest-status-proven-vs-not-proven).
+
+## Links
+
+- Website: [www.skynetlabsai.com](https://www.skynetlabsai.com) | [skynetjoe.com](https://skynetjoe.com)
+- WhatsApp: [+62 813 1607 7185](https://wa.me/6281316077185)
+- Free guide (PDF): [`docs/Live-Stream-Clipping-Starter-Guide.pdf`](docs/Live-Stream-Clipping-Starter-Guide.pdf)
+- Playbook (deeper, paid, Etsy): [The AI Stream Clipper Playbook](https://www.etsy.com/listing/4624484141)
 
 ---
 
@@ -46,6 +98,10 @@ live chat (yt-dlp) -----------------------------+--> chat velocity + hype words 
         clips/<id>/clip.mp4 + cover.jpg + meta.json <-- render (NVENC or x264) <-- LLM judge (strict JSON, sees 5 frames)
 ```
 
+![Architecture: stream to four signals to candidates to AI judge to render to Studio review to dry-run publish queue](docs/img/architecture.png)
+
+*Architecture: every step from the live stream to the dry-run publish queue.*
+
 1. **Ingest.** Captures a live URL with yt-dlp into 10-second MPEG-TS segments and downloads the live chat. Or follows a recording file.
 2. **Four signals, every second of stream time.**
    - chat messages per second against a 10-minute rolling baseline (robust z-score),
@@ -55,6 +111,14 @@ live chat (yt-dlp) -----------------------------+--> chat velocity + hype words 
 3. **Candidates.** A combined score crosses a threshold and becomes one candidate per spike. Chat-led peaks are shifted back by the viewer reaction lag (12 s). If nothing fires for 5 minutes, the best window in that span is still judged, so quiet stretches are not ignored.
 4. **LLM judge.** A headless `claude -p` call (Haiku by default) reads the transcript window, loudness peaks, chat bursts and chat text, and opens 5 frames from the window to see the screen. It returns strict JSON: score 0-100, reason, start/end (20-55 s, hook first), title, caption, hashtags and a `safe` flag. Sexual or otherwise unsuitable windows are rejected. If the CLI is missing, fails, or the hourly cap is hit, a deterministic signal-based score is used instead and marked in `reasons`.
 5. **Cut and design.** Finds the facecam once per stream (OpenCV YuNet face detector, or set it by hand), then renders a stacked layout: zoomed facecam on top, gameplay below, a divider, word-timed captions (2-3 words, active word highlighted), a hook title for the first 2.6 s, a "clipped by AI" credit card, loudness normalised to -14 LUFS, and a designed `cover.jpg`.
+![How a moment is scored: four signals, combined score threshold 2.2, AI judge minimum score 55](docs/img/how-a-moment-is-scored.png)
+
+*How a moment is scored. Thresholds are the defaults in `config.yaml`; the bars are an illustration.*
+
+![Sample 1080x1920 clip layout with facecam on top, gameplay below, left sidebar, hook title, captions and credit card](docs/img/sample-clip-layout.png)
+
+*The clip layout on a synthetic placeholder (no real stream or person): left sidebar, hook title, word-timed captions, credit card.*
+
 6. **Nothing is published by the engine.** Clips land in a folder. Publishing is a separate, opt-in queue (section 10).
 
 ## 2. Honest status: proven vs not proven
@@ -193,9 +257,29 @@ The Studio is a single local page (standard library server, bound to `127.0.0.1`
 | Connections   | which destinations have a credential file and an uploader script                                                       |
 | Settings      | caps, spacing, posting window, auto-publish switch (simulated, see section 10)                                         |
 
-![Clips](docs/screenshots/dashboard-clips.png)
-![Publish queue](docs/screenshots/dashboard-publish-queue.png)
-![Connections](docs/screenshots/dashboard-connections.png)
+![Moments timeline: chat velocity and audio energy against baseline with detected moments marked](docs/img/dash-timeline.png)
+
+*Moments timeline: chat and audio against baseline; each green circle is a detected moment.*
+
+![Clips grid with score rings and reasons](docs/img/dash-clips.png)
+
+*Clips: every cut with its score, reasons and approval status.*
+
+![Clip player with transcript, caption, hashtags and Approve, Save edits, Reject buttons](docs/img/dash-player.png)
+
+*Clip player: watch, edit the caption, approve or reject.*
+
+![Publish queue with a DRY RUN tag, auto-publish switched off and the rules in force](docs/img/dash-publish-queue.png)
+
+*Publish queue: the DRY RUN tag is on and auto-publish is off, so nothing is posted.*
+
+![Connections page: five destinations, all not connected in demo mode](docs/img/dash-connections.png)
+
+*Connections: a destination shows as connected only when its credential file exists.*
+
+![Settings: breaker, engine caps and publishing caps](docs/img/dash-settings.png)
+
+*Settings: the breaker and the hard caps.*
 
 **Try it without an engine run:** demo mode generates synthetic data (abstract covers, no real people).
 
@@ -256,6 +340,10 @@ touch data/STOP        # Windows: type nul > data\STOP
 ```bash
 python run.py --live URL --profile light
 ```
+
+![Full mode versus light mode: speech model, render, clips per hour, hardware, switch and test status](docs/img/full-vs-light-mode.png)
+
+*Full mode vs light mode.*
 
 Light mode uses the `small` speech model on CPU (int8), `libx264` and 3 clips per hour. It is meant for a 4 vCPU / 8 GB machine. You can also set `safety.full_power_until` to a timestamp: after that moment the engine switches itself to light mode (empty = never). Light mode end to end is untested.
 
@@ -321,4 +409,6 @@ MIT. See [LICENSE](LICENSE).
 
 ---
 
-Built by **SkynetLabs** - [www.skynetlabsai.com](https://www.skynetlabsai.com) - [skynetjoe.com](https://skynetjoe.com) - WhatsApp [+62 813 1607 7185](https://wa.me/6281316077185)
+**SkynetLabs Clipping System** by SkynetLabs - [www.skynetlabsai.com](https://www.skynetlabsai.com) - [skynetjoe.com](https://skynetjoe.com) - WhatsApp [+62 813 1607 7185](https://wa.me/6281316077185)
+
+Playbook: [The AI Stream Clipper Playbook on Etsy](https://www.etsy.com/listing/4624484141) | Free guide: [PDF](docs/Live-Stream-Clipping-Starter-Guide.pdf)
